@@ -77,8 +77,8 @@
             function loadDataSet(dataset, full_config) {
 
                 $('#grids').empty();
-                
-                document.title  = dataset.title;
+
+                document.title = dataset.title;
 
                 loadSqliteFile(dataset.title, dataset.db_url).then(db => {
 
@@ -125,7 +125,7 @@
 
                     });
 
-                }).catch(r=> showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`) );
+                }).catch(r => showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`));
             }
 
         });
@@ -159,7 +159,7 @@
 
             });
 
-            $(`#${gridId}_export`).click(()=> tabulator.download("csv", `${gridId}_data.csv`));
+            $(`#${gridId}_export`).click(() => tabulator.download("csv", `${gridId}_data.csv`));
             $(`#${gridId}_rowcount`).text(rows.length);
 
             return tabulator;
@@ -242,6 +242,27 @@
             $('#customQueryText').val('SELECT name FROM sqlite_master');
             runCustomQuery();
 
+
+
+        }
+
+        function showAllFields() {
+
+            const query = `SELECT 
+                            m.name as table_name,
+                            p.name as column_name,
+                            p.type as data_type,
+                            CASE WHEN p."notnull" = 0 THEN 'YES' ELSE 'NO' END as nullable,
+                            CASE WHEN p.pk = 1 THEN 'YES' ELSE 'NO' END as primary_key,
+                            p.dflt_value as default_value
+                        FROM sqlite_master m
+                        JOIN pragma_table_info(m.name) p
+                        WHERE m.type = 'table'
+                        ORDER BY m.name, p.cid;`;
+
+                        $('#customQueryText').val(query);
+                        runCustomQuery();         
+
         }
 
     </script>
@@ -252,7 +273,7 @@
     <select id="dataSetSelect">
         <option value="" disabled selected>Choose a Dataset</option>
     </select>
-    <a id="customQueryBtn" style="display: none;" href="javascript: return;"
+    <a id="customQueryBtn" style="display: none;" href="javascript: void(0);"
         onclick="document.getElementById('id01').style.display='block'" class="">Custom Query</a>
 
 </div>
@@ -270,7 +291,8 @@
         </header>
 
         <div class="w3-container">
-            <div><a href="javascript:showTables();">Show Tables</a></div>
+            <div><a href="javascript:showTables();">Show Tables</a>
+            <a href="javascript:showAllFields();">Show All Fields</a></div>
             <div class="w3-container w3-margin"> <textarea id="customQueryText"
                     style="width: 100%;height: 150px;"></textarea></div>
             <div class="w3-container w3-margin"><button class="w3-button w3-blue"
