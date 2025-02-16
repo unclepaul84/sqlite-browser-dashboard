@@ -127,7 +127,7 @@
 
                     });
 
-                });
+                }).catch(r=> showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`) );
             }
 
         });
