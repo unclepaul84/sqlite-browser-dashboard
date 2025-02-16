@@ -173,7 +173,8 @@
 
             $(`#${gridId}_export`).click(() => tabulator.download("csv", `${gridId}_data.csv`));
             $(`#${gridId}_rowcount`).text(rows.length);
-
+            $(`#${gridId}_title`).prop('title', query);
+          
             return tabulator;
         }
 
