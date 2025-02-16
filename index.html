@@ -182,7 +182,7 @@
 
         async function loadSqliteFile(name, path) {
             console.debug(`Loading database from url ${path}...`);
-            const promise = fetch(path)
+            const promise = fetch(path + "?" + new Date())
                 .then((response) => {
                     if (!response.ok) {
                         return null;
