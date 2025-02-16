@@ -110,7 +110,7 @@
                                 loadDataSet(selectedDataset, json);
 
                             } finally {
-                                $("#loading").hide();
+                                
                             }
                         } else {
                             showErrorToast(`Dataset '${name}' not found`);
@@ -129,6 +129,8 @@
                 document.title = dataset.title;
 
                 loadSqliteFile(dataset.title, dataset.db_url).then(db => {
+                    
+                    $("#loading").hide();
 
                     window.current_db = db;
 
@@ -164,7 +166,9 @@
                                 $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
 
                                 $(`#${childGridId}_title`).text(title);
+                               
                                 $("#loading").show();
+                                
                                 try {
                                     queryAndBuildGrid(db, replaceStringTemplateValues(childDi.query, data), childGridId, true);
                                 } finally { 
@@ -178,7 +182,7 @@
 
                     });
 
-                }).catch(r => showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`));
+                }).catch(r => { showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`); $("#loading").hide();});
             }
 
         });
