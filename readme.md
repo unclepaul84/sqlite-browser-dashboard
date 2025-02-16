@@ -10,7 +10,7 @@ A web-based dashboard for viewing and querying SQLite databases with configurabl
 - Custom SQL query interface
 - Nested data views with parent-child relationships
 - Real-time header filtering
-- -GitHub pages hostable
+- GitHub pages hostable
 - Supports loading sqlite databases from GitHub pages
 
 
