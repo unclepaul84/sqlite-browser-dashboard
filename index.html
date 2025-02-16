@@ -36,8 +36,6 @@
 
                 resp.json().then(json => {
 
-                    console.warn(json);
-
                     // Get the select element using jQuery
                     const $select = $('#dataSetSelect');
 
@@ -98,7 +96,7 @@
 
                         const gridId = `grid_${di.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-                        $('#grids').append(`<div class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><div id="${gridId}"></div></div>`);
+                        $('#grids').append(`<div class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><a id="${gridId}_export" href="javascript:void(0);">Export</a><div id="${gridId}"></div></div>`);
 
                         $(`#${gridId}_title`).text(di.title);
 
@@ -115,7 +113,7 @@
 
                                 $(`#${childGridId}_container`).remove();
 
-                                $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><div id="${childGridId}"></div></div>`);
+                                $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
 
                                 $(`#${childGridId}_title`).text(title);
 
@@ -161,6 +159,7 @@
 
             });
 
+            $(`#${gridId}_export`).click(()=> tabulator.download("csv", `${gridId}_data.csv`));
             $(`#${gridId}_rowcount`).text(rows.length);
 
             return tabulator;
