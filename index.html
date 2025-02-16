@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Viewer</title>
+    <link rel="stylesheet" href="js/ws.css">
+    <link rel="stylesheet" href="js/tabulator.min.css" />
+    <link rel="stylesheet" href="js/toastify.css" />
+    <script src="js/toastify.js"></script>
+    <script src="js/tabulator.min.js"></script>
+    <script src="js/sqlean.js"></script>
+    <script src="js/jquery-3.7.1.min.js"></script>
+    <script src="js/routie.js"></script>
+    <script>
+
+        initSqlite().then((sqlite3) => {
+
+            const urlParams = new URLSearchParams(window.location.search);
+
+            url = urlParams.get('url');
+
+            fetch(`${url}/index.json?date=${new Date()}`).then(async resp => {
+
+                if (!resp.ok) {
+
+                    showErrorToast(`Error loading config file from ${url}: ${resp.statusText}`);
+                }
+
+                resp.json().then(json => {
+
+                    console.warn(json);
+
+                    // Get the select element using jQuery
+                    const $select = $('#dataSetSelect');
+
+                    // Add options from json data using jQuery
+                    json.datasets.forEach(item => {
+                        $select.append($('<option>', {
+                            value: item.title,
+                            text: item.title
+                        }));
+                    });
+
+                    document.getElementById('dataSetSelect').addEventListener('change', function () {
+                        const selectedValue = this.value;
+                        if (selectedValue) {
+                            window.location.hash = `#dataset/${selectedValue}`;
+                        }
+                    });
+
+                    routie('dataset/:name', function (name) {
+                        const selectedDataset = json.datasets.find(dataset => dataset.title === name);
+
+                        if (selectedDataset) {
+
+                            $('#dataSetSelect').val(name);
+                            $('#customQueryBtn').show();
+
+                            loadDataSet(selectedDataset, json);
+
+                        } else {
+                            showErrorToast(`Dataset '${name}' not found`);
+                        }
+
+                    });
+
+                });
+
+            });
+
+            function loadDataSet(dataset, full_config) {
+
+                $('#grids').empty();
+
+                loadSqliteFile(dataset.title, dataset.db_url).then(db => {
+
+                    window.current_db = db;
+
+                    template = full_config.dashboard_templates.find(dt => dt.name === dataset.dashboard_items_tempate);
+
+                    if (!template) {
+                        showErrorToast(`Could not find dashboard template named [${dataset.dashboard_items_tempate}]`);
+                    }
+
+                    template.dashboard_items.forEach(di => {
+                        if (di.templated)
+                            return;
+
+                        const gridId = `grid_${di.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+                        $('#grids').append(`<div class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><div id="${gridId}"></div></div>`);
+
+                        $(`#${gridId}_title`).text(di.title);
+
+                        var tabulator = queryAndBuildGrid(db, di.query, gridId, false);
+
+                        tabulator.on("rowClick", function (e, row) {
+                            const data = row.getData();
+
+                            template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
+
+                                title = replaceStringTemplateValues(childDi.title, data);
+
+                                const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+                                $(`#${childGridId}_container`).remove();
+
+                                $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><div id="${childGridId}"></div></div>`);
+
+                                $(`#${childGridId}_title`).text(title);
+
+                                queryAndBuildGrid(db, replaceStringTemplateValues(childDi.query, data), childGridId, true);
+
+                            });
+
+                        });
+
+                    });
+
+                });
+            }
+
+        });
+
+        function queryAndBuildGrid(db, query, gridId, fixHeight) {
+            const rows = [];
+
+            db.exec({
+                sql: query,
+                rowMode: "object",
+                resultRows: rows,
+            });
+
+            const columns = rows.length > 0 ? Object.keys(rows[0]).map(field => ({
+                title: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' '),
+                field: field,
+                headerFilter: "input",
+                sorter: "string",
+                width: 150,
+
+                headerFilterPlaceholder: `Filter ${field}...`
+            })) : [];
+
+            var tabulator = new Tabulator(`#${gridId}`, {
+                data: rows,
+                filterMode: "local",
+                layout: "fitColumns",
+                headerFilterLiveFilter: true,
+                height: fixHeight ? "300px" : null,
+                columns: columns
+
+            });
+
+            $(`#${gridId}_rowcount`).text(rows.length);
+
+            return tabulator;
+        }
+
+        function loadSqliteFromArrayBuffer(buf) {
+            const bytes = new Uint8Array(buf);
+            const p = sqlite3.wasm.allocFromTypedArray(bytes);
+            const db = new sqlite3.oo1.DB();
+            sqlite3.capi.sqlite3_deserialize(
+                db.pointer,
+                "main",
+                p,
+                bytes.length,
+                bytes.length,
+                sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE
+            );
+            return db;
+        }
+
+        async function loadSqliteFile(name, path) {
+            console.debug(`Loading database from url ${path}...`);
+            const promise = fetch(path)
+                .then((response) => {
+                    if (!response.ok) {
+                        return null;
+                    }
+                    return response.arrayBuffer();
+                })
+                .catch((reason) => {
+                    return null;
+                });
+            const buf = await promise;
+            if (!buf) {
+                return null;
+            }
+
+            const db = loadSqliteFromArrayBuffer(buf);
+
+            return db;
+        }
+
+        async function initSqlite() {
+            const sqlite3 = await sqlite3InitModule({
+                print: console.log,
+                printErr: console.error,
+            });
+            const version = sqlite3.capi.sqlite3_libversion();
+            console.log(`Loaded SQLite ${version}`);
+            window.sqlite3 = sqlite3;
+            return sqlite3;
+        }
+
+        function showErrorToast(errorText) {
+            Toastify({
+
+                text: errorText,
+                close: true,
+                duration: 3000,
+                backgroundColor: "red"
+
+            }).showToast();
+        }
+
+        function replaceStringTemplateValues(template, data) {
+            return template.replace(/\${(.*?)}/g, (_, key) => data[key] || "");
+        }
+
+        function runCustomQuery() {
+            $("#customQueryGrid").empty();
+            query = $(`#customQueryText`).val();
+            try {
+                queryAndBuildGrid(window.current_db, query, "customQueryGrid", true)
+            } catch (ex) {
+                showErrorToast(ex.message);
+            }
+        }
+
+        function showTables() {
+            $('#customQueryText').val('SELECT name FROM sqlite_master');
+            runCustomQuery();
+
+        }
+
+    </script>
+</head>
+
+<div class="w3-container w3-blue">
+    Sqlite Dataset Viewer
+    <select id="dataSetSelect">
+        <option value="" disabled selected>Choose a Dataset</option>
+    </select>
+    <a id="customQueryBtn" style="display: none;" href="javascript: return;"
+        onclick="document.getElementById('id01').style.display='block'" class="">Custom Query</a>
+
+</div>
+<div id="grids" class="w3-container">
+    <div id="grid" style="margin: 5px;"></div>
+</div>
+
+<div id="id01" class="w3-modal">
+    <div class="w3-modal-content">
+
+        <header class="w3-container w3-blue">
+            <span onclick="document.getElementById('id01').style.display='none'"
+                class="w3-button w3-display-topright">&times;</span>
+            <h4>Custom Query</h4>
+        </header>
+
+        <div class="w3-container">
+            <div><a href="javascript:showTables();">Show Tables</a></div>
+            <div class="w3-container w3-margin"> <textarea id="customQueryText"
+                    style="width: 100%;height: 150px;"></textarea></div>
+            <div class="w3-container w3-margin"><button class="w3-button w3-blue"
+                    onclick="javascript:runCustomQuery();">Run</button></div>
+            <div class="w3-container w3-margin">
+                <div id="customQueryGrid"></div>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+
+</body>
+
+</html>
