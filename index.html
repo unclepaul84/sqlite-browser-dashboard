@@ -5,6 +5,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dataset Viewer</title>
+    <style>
+        .loading {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: #fff;
+        }
+
+        .loader {
+            left: 50%;
+            margin-left: -4em;
+            font-size: 10px;
+            border: .8em solid rgba(218, 219, 223, 1);
+            border-left: .8em solid rgba(58, 166, 165, 1);
+            animation: spin 1.1s infinite linear;
+        }
+
+        .loader,
+        .loader:after {
+            border-radius: 50%;
+            width: 8em;
+            height: 8em;
+            display: block;
+            position: absolute;
+            top: 50%;
+            margin-top: -4.05em;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(360deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+    </style>
     <link rel="stylesheet" href="js/ws.css">
     <link rel="stylesheet" href="js/tabulator.min.css" />
     <link rel="stylesheet" href="js/toastify.css" />
@@ -61,9 +101,14 @@
 
                             $('#dataSetSelect').val(name);
                             $('#customQueryBtn').show();
+                            try {
+                                $("#loading").show();
 
-                            loadDataSet(selectedDataset, json);
+                                loadDataSet(selectedDataset, json);
 
+                            } finally {
+                                $("#loading").hide();
+                            }
                         } else {
                             showErrorToast(`Dataset '${name}' not found`);
                         }
@@ -116,8 +161,13 @@
                                 $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
 
                                 $(`#${childGridId}_title`).text(title);
+                                $("#loading").show();
+                                try {
+                                    queryAndBuildGrid(db, replaceStringTemplateValues(childDi.query, data), childGridId, true);
+                                } finally { 
 
-                                queryAndBuildGrid(db, replaceStringTemplateValues(childDi.query, data), childGridId, true);
+                                    $("#loading").hide();
+                                }
 
                             });
 
@@ -143,11 +193,11 @@
             if (rows.length > 0) {
                 const sampleRows = rows.slice(0, 10);
                 Object.keys(rows[0]).forEach(field => {
-                    const isNumeric = sampleRows.every(row => 
-                        typeof row[field] === 'number' || 
+                    const isNumeric = sampleRows.every(row =>
+                        typeof row[field] === 'number' ||
                         !isNaN(row[field]) && row[field] !== ''
                     );
-                    fieldTypes[field] = isNumeric ?  {"sorter":'number', "filter":'input' } :  {"sorter":'string', "filter":'input' };
+                    fieldTypes[field] = isNumeric ? { "sorter": 'number', "filter": 'input' } : { "sorter": 'string', "filter": 'input' };
                 });
             }
             const columns = rows.length > 0 ? Object.keys(rows[0]).map(field => ({
@@ -155,7 +205,7 @@
                 field: field,
                 headerFilter: fieldTypes[field]["filter"],
                 sorter: fieldTypes[field]["sorter"],
-                
+
 
                 headerFilterPlaceholder: `${field}=`
             })) : [];
@@ -163,10 +213,10 @@
             var tabulator = new Tabulator(`#${gridId}`, {
                 data: rows,
                 filterMode: "local",
-                layout:"fitDataFill",
+                layout: "fitDataFill",
                 headerFilterLiveFilter: true,
                 height: fixHeight ? "300px" : null,
-                maxHeight:"300px",
+                maxHeight: "300px",
                 columns: columns
 
             });
@@ -174,7 +224,7 @@
             $(`#${gridId}_export`).click(() => tabulator.download("csv", `${gridId}_data.csv`));
             $(`#${gridId}_rowcount`).text(rows.length);
             $(`#${gridId}_title`).prop('title', query);
-          
+
             return tabulator;
         }
 
@@ -273,51 +323,56 @@
                         WHERE m.type = 'table'
                         ORDER BY m.name, p.cid;`;
 
-                        $('#customQueryText').val(query);
-                        runCustomQuery();         
+            $('#customQueryText').val(query);
+            runCustomQuery();
 
         }
 
     </script>
 </head>
 
-<div class="w3-container w3-blue">
-    Sqlite Dataset Viewer
-    <select id="dataSetSelect">
-        <option value="" disabled selected>Choose a Dataset</option>
-    </select>
-    <a id="customQueryBtn" style="display: none;" href="javascript: void(0);"
-        onclick="document.getElementById('id01').style.display='block'" class="">Custom Query</a>
-
-</div>
-<div id="grids" class="w3-container">
-    <div id="grid" style="margin: 5px;"></div>
-</div>
-
-<div id="id01" class="w3-modal">
-    <div class="w3-modal-content">
-
-        <header class="w3-container w3-blue">
-            <span onclick="document.getElementById('id01').style.display='none'"
-                class="w3-button w3-display-topright">&times;</span>
-            <h4>Custom Query</h4>
-        </header>
-
-        <div class="w3-container">
-            <div><a href="javascript:showTables();">Show Tables</a>
-            <a href="javascript:showAllFields();">Show All Fields</a></div>
-            <div class="w3-container w3-margin"> <textarea id="customQueryText"
-                    style="width: 100%;height: 150px;"></textarea></div>
-            <div class="w3-container w3-margin"><button class="w3-button w3-blue"
-                    onclick="javascript:runCustomQuery();">Run</button></div>
-            <div class="w3-container w3-margin">
-                <div id="customQueryGrid"></div>
-            </div>
-        </div>
-
+<body>
+    <div id="loading" class="loading" style="display: none;">
+        <div class="loader"></div>
+    </div>
+    <div class="w3-container w3-blue">
+        Sqlite Dataset Viewer
+        <select id="dataSetSelect">
+            <option value="" disabled selected>Choose a Dataset</option>
+        </select>
+        <a id="customQueryBtn" style="display: none;" href="javascript: void(0);"
+            onclick="document.getElementById('id01').style.display='block'" class="">Custom Query</a>
 
     </div>
-</div>
+    <div id="grids" class="w3-container">
+        <div id="grid" style="margin: 5px;"></div>
+    </div>
+
+    <div id="id01" class="w3-modal">
+        <div class="w3-modal-content">
+
+            <header class="w3-container w3-blue">
+                <span onclick="document.getElementById('id01').style.display='none'"
+                    class="w3-button w3-display-topright">&times;</span>
+                <h4>Custom Query</h4>
+            </header>
+
+            <div class="w3-container">
+                <div><a href="javascript:showTables();">Show Tables</a>
+                    <a href="javascript:showAllFields();">Show All Fields</a>
+                </div>
+                <div class="w3-container w3-margin"> <textarea id="customQueryText"
+                        style="width: 100%;height: 150px;"></textarea></div>
+                <div class="w3-container w3-margin"><button class="w3-button w3-blue"
+                        onclick="javascript:runCustomQuery();">Run</button></div>
+                <div class="w3-container w3-margin">
+                    <div id="customQueryGrid"></div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
 
 
 </body>
