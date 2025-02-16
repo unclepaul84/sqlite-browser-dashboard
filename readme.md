@@ -99,3 +99,7 @@ The dashboard includes a custom query interface that allows:
 - Modern web browser with JavaScript enabled
 - Web server to host static files
 - SQLite databases accessible via HTTP
+
+
+## Roadmap
+optimize sqlite fetching https://github.com/phiresky/sql.js-httpvfs
