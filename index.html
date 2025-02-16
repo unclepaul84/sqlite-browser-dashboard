@@ -79,6 +79,8 @@
             function loadDataSet(dataset, full_config) {
 
                 $('#grids').empty();
+                
+                document.title  = dataset.title;
 
                 loadSqliteFile(dataset.title, dataset.db_url).then(db => {
 
