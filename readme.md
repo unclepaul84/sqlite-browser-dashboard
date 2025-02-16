@@ -91,7 +91,7 @@ The dashboard includes a custom query interface that allows:
 
 ## Usage
 
-1. Host the files on a web server
+1. Host the files on a web server or GitHub pages
 2. Configure your `index.json` file
 3. Access the dashboard via URL with `?url=path/to/config/directory`
 4. Select a dataset from the dropdown to load views
