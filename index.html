@@ -139,12 +139,23 @@
                 resultRows: rows,
             });
 
+            const fieldTypes = {};
+            if (rows.length > 0) {
+                const sampleRows = rows.slice(0, 10);
+                Object.keys(rows[0]).forEach(field => {
+                    const isNumeric = sampleRows.every(row => 
+                        typeof row[field] === 'number' || 
+                        !isNaN(row[field]) && row[field] !== ''
+                    );
+                    fieldTypes[field] = isNumeric ?  {"sorter":'number', "filter":'input' } :  {"sorter":'string', "filter":'input' };
+                });
+            }
             const columns = rows.length > 0 ? Object.keys(rows[0]).map(field => ({
                 title: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' '),
                 field: field,
-                headerFilter: "input",
-                sorter: "string",
-                width: 150,
+                headerFilter: fieldTypes[field]["filter"],
+                sorter: fieldTypes[field]["sorter"],
+                
 
                 headerFilterPlaceholder: `${field}=`
             })) : [];
@@ -152,7 +163,7 @@
             var tabulator = new Tabulator(`#${gridId}`, {
                 data: rows,
                 filterMode: "local",
-                layout: "fitColumns",
+                layout:"fitDataFill",
                 headerFilterLiveFilter: true,
                 height: fixHeight ? "300px" : null,
                 maxHeight:"300px",
