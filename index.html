@@ -68,6 +68,8 @@
             }
 
             fetch(`${url}/index.json?date=${new Date()}`).then(async resp => {
+                
+                $("#loading").hide();
 
                 if (!resp.ok) {
 
@@ -76,6 +78,7 @@
 
                 resp.json().then(json => {
 
+                   
                     // Get the select element using jQuery
                     const $select = $('#dataSetSelect');
 
