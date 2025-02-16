@@ -21,6 +21,12 @@
 
             url = urlParams.get('url');
 
+
+            if (!url) {
+                showErrorToast(`must provide [?url=<your_url>] query parameter!`);
+                return;
+            }
+
             fetch(`${url}/index.json?date=${new Date()}`).then(async resp => {
 
                 if (!resp.ok) {
