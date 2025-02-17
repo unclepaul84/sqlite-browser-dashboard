@@ -54,6 +54,7 @@
     <script src="js/jquery-3.7.1.min.js"></script>
     <script src="js/routie.js"></script>
     <script src="js/chart.umd.js"></script>
+    <script src="js/configValidator.js"></script>
     <script>
 
         initSqlite().then((sqlite3) => {
@@ -78,6 +79,13 @@
                 }
 
                 resp.json().then(json => {
+
+
+                    const validation = ConfigValidator.validateConfig(json);
+                    if (!validation.isValid) {
+                        validation.errors.forEach(error => showErrorToast(`Configuration error: ${error}`));
+                        return;
+                    }
 
                     // Validate unique titles within dashboard_items
                     var titlesValid = true;
@@ -485,9 +493,8 @@
             runCustomQuery();
 
         }
-        function showCustomQueryModal()
-        {
-            document.getElementById('customQueryModal').style.display='block';
+        function showCustomQueryModal() {
+            document.getElementById('customQueryModal').style.display = 'block';
 
         }
 
@@ -495,7 +502,7 @@
 </head>
 
 <body>
-    <div id="loading" class="loading" >
+    <div id="loading" class="loading">
         <div class="loader"></div>
     </div>
     <div class="w3-container w3-blue">
