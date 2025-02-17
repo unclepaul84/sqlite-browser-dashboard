@@ -173,7 +173,7 @@
 
                         const gridId = `grid_${di.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-                        $('#grids').append(`<div class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><a id="${gridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${gridId}"></div></div>`);
+                        $('#grids').append(`<div  id="${gridId}_visualization_container" class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><a id="${gridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${gridId}"></div> <div id="${gridId}_visualization_container_children"> </div></div>`);
 
                         $(`#${gridId}_title`).on("dblclick", function (el) {
                             showCustomQueryModal();
@@ -187,19 +187,19 @@
                         var vis_result = queryAndBuildVisualization(db, di, di.query, gridId, dataset.title);
 
                         if (vis_result[0] === "grid") {
-                            vis_result[1].on("rowClick", function (e, row) {
+                            vis_result[1].on("rowClick",  function (e, row) {
 
                                 const data = row.getData();
+                                
+                                $(`#${gridId}_visualization_container_children`).empty();
 
                                 template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
 
                                     title = replaceStringTemplateValues(childDi.title, data);
 
-                                    const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                                    const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;                        
 
-                                    $(`#${childGridId}_container`).remove();
-
-                                    $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
+                                    $(`#${gridId}_visualization_container_children`).append(`<div id="${childGridId}_visualization_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
 
                                     $(`#${childGridId}_title`).text(title);
                                     $(`#${childGridId}_title`).on("dblclick", function (el) {
