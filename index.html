@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dataset Viewer</title>
     <style>
+      
+
         .loading {
             position: fixed;
             top: 0;
@@ -53,6 +55,7 @@
     <script src="js/sqlean.js"></script>
     <script src="js/jquery-3.7.1.min.js"></script>
     <script src="js/routie.js"></script>
+    <script src="js/chart.umd.js"></script>
     <script>
 
         initSqlite().then((sqlite3) => {
@@ -68,17 +71,35 @@
             }
 
             fetch(`${url}/index.json?date=${new Date()}`).then(async resp => {
-                
+
                 $("#loading").hide();
 
                 if (!resp.ok) {
-
+ 
                     showErrorToast(`Error loading config file from ${url}: ${resp.statusText}`);
                 }
-
+                
                 resp.json().then(json => {
+     
+                    // Validate unique titles within dashboard_items
+                    var titlesValid = true;
 
-                   
+                    json.dashboard_templates.forEach(template => {
+
+                        const titles = new Set();
+                        template.dashboard_items.forEach(item => {
+                            if (titles.has(item.title)) {
+                                showErrorToast(`Duplicate dashboard item title found: ${item.title}`);
+                                titlesValid=false;
+                                return;
+                            }
+                            titles.add(item.title);
+                        });
+                    });
+
+                    if(!titlesValid)
+                        return;
+
                     // Get the select element using jQuery
                     const $select = $('#dataSetSelect');
 
@@ -110,7 +131,7 @@
                                 loadDataSet(selectedDataset, json);
 
                             } finally {
-                                
+
                             }
                         } else {
                             showErrorToast(`Dataset '${name}' not found`);
@@ -129,7 +150,7 @@
                 document.title = dataset.title;
 
                 loadSqliteFile(dataset.title, dataset.db_url).then(db => {
-                    
+
                     $("#loading").hide();
 
                     window.current_db = db;
@@ -146,50 +167,67 @@
 
                         const gridId = `grid_${di.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-                        $('#grids').append(`<div class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><a id="${gridId}_export" href="javascript:void(0);">Export</a><div id="${gridId}"></div></div>`);
+                        $('#grids').append(`<div class="w3-container" style="margin-top:5px" ><span class="w3-tag w3-blue" id="${gridId}_title" ></span><span id="${gridId}_rowcount"  class="w3-tag"></span><a id="${gridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${gridId}"></div></div>`);
 
                         $(`#${gridId}_title`).text(di.title);
 
-                        var tabulator = queryAndBuildGrid(db, di.query, gridId, false);
 
-                        tabulator.on("rowClick", function (e, row) {
-                            const data = row.getData();
+                        var vis_result = queryAndBuildVisualization(db, di, di.query, gridId, dataset.title );
 
-                            template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
+                        if (vis_result[0] === "grid") {
+                            vis_result[1].on("rowClick", function (e, row) {
 
-                                title = replaceStringTemplateValues(childDi.title, data);
+                                const data = row.getData();
 
-                                const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                                template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
 
-                                $(`#${childGridId}_container`).remove();
+                                    title = replaceStringTemplateValues(childDi.title, data);
 
-                                $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
+                                    const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-                                $(`#${childGridId}_title`).text(title);
-                               
-                                $("#loading").show();
-                                
-                                try {
-                                    queryAndBuildGrid(db, replaceStringTemplateValues(childDi.query, data), childGridId, true);
-                                } finally { 
+                                    $(`#${childGridId}_container`).remove();
 
-                                    $("#loading").hide();
-                                }
+                                    $('#grids').append(`<div id="${childGridId}_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
+
+                                    $(`#${childGridId}_title`).text(title);
+
+                                    $("#loading").show();
+
+                                    try {
+                                        queryAndBuildVisualization(db,  childDi, replaceStringTemplateValues(childDi.query, data), childGridId,title);
+
+                                    } finally {
+
+                                        $("#loading").hide();
+                                    }
+
+                                });
 
                             });
-
-                        });
+                        }
+                       
 
                     });
 
-                }).catch(r => { showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`); $("#loading").hide();});
+                }).catch(r => { showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`); $("#loading").hide(); });
             }
 
         });
 
-        function queryAndBuildGrid(db, query, gridId, fixHeight) {
-            const rows = [];
+        function queryAndBuildVisualization(db, di, query, containerId, title) {
 
+
+            if (di.type === 'chart') {
+                return ['chart', createChart(db, query, containerId, di,title)];
+            } else {
+                return ['grid', queryAndBuildGrid(db, query, containerId, false,title)];
+            }
+        }
+
+
+        function queryAndBuildGrid(db, query, gridId,title) {
+            const rows = [];
+            console.warn(`queryAndBuildGrid:${query}`,query);
             db.exec({
                 sql: query,
                 rowMode: "object",
@@ -222,17 +260,62 @@
                 filterMode: "local",
                 layout: "fitDataFill",
                 headerFilterLiveFilter: true,
-                height: fixHeight ? "300px" : null,
-                maxHeight: "300px",
+                height: null,
+                maxHeight: "600px",
                 columns: columns
 
             });
+            $(`#${gridId}_export`).show();
 
             $(`#${gridId}_export`).click(() => tabulator.download("csv", `${gridId}_data.csv`));
             $(`#${gridId}_rowcount`).text(rows.length);
             $(`#${gridId}_title`).prop('title', query);
 
             return tabulator;
+        }
+
+        function createChart(db, query, containerId, config,title) {
+            const rows = [];
+
+            db.exec({
+                sql: query,
+                rowMode: "object",
+                resultRows: rows,
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.id = `${containerId}_canvas`;
+            document.getElementById(containerId).appendChild(canvas);
+            document.getElementById(containerId).style = "border-width:2px;border-style:solid;border-color:LightGray;"
+      
+            const ctx = canvas.getContext('2d');
+
+            const labels = rows.map(row => row[config.options.xField]);
+            const values = rows.map(row => row[config.options.yField]);
+
+            const chartConfig = {
+                type: config.chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: title || '',
+                        data: values
+                      
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            };
+            $(`#${containerId}_rowcount`).text(rows.length);
+            $(`#${containerId}_title`).prop('title', query);
+            return new Chart(ctx, chartConfig);
         }
 
         function loadSqliteFromArrayBuffer(buf) {
