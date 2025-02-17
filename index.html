@@ -187,17 +187,17 @@
                         var vis_result = queryAndBuildVisualization(db, di, di.query, gridId, dataset.title);
 
                         if (vis_result[0] === "grid") {
-                            vis_result[1].on("rowClick",  function (e, row) {
+                            vis_result[1].on("rowClick", function (e, row) {
 
                                 const data = row.getData();
-                                
+
                                 $(`#${gridId}_visualization_container_children`).empty();
 
                                 template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
 
                                     title = replaceStringTemplateValues(childDi.title, data);
 
-                                    const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;                        
+                                    const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
                                     $(`#${gridId}_visualization_container_children`).append(`<div id="${childGridId}_visualization_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
 
@@ -215,7 +215,7 @@
 
                                     } finally {
 
-                                        $("#loading").hide();
+
                                     }
 
                                 });
@@ -237,14 +237,14 @@
             if (di.type === 'chart') {
                 return ['chart', createChart(db, query, containerId, di, title)];
             } else {
-                return ['grid', queryAndBuildGrid(db, query, containerId, false, title)];
+                return ['grid', queryAndBuildGrid(db, query, containerId, title, di)];
             }
         }
 
 
-        function queryAndBuildGrid(db, query, gridId, title) {
+        function queryAndBuildGrid(db, query, gridId, title, di) {
             const rows = [];
-            console.warn(`queryAndBuildGrid:${query}`, query);
+
             db.exec({
                 sql: query,
                 rowMode: "object",
@@ -263,7 +263,7 @@
                 });
             }
             const columns = rows.length > 0 ? Object.keys(rows[0]).map(field => ({
-                title: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' '),
+                title: field,
                 field: field,
                 headerFilter: fieldTypes[field]["filter"],
                 sorter: fieldTypes[field]["sorter"],
@@ -272,6 +272,21 @@
                 headerFilterPlaceholder: `${field}=`
             })) : [];
 
+
+            grid_row_menus = null;
+            
+            if (di.grid_row_menus)
+                grid_row_menus = di.grid_row_menus.map(m => {
+
+                    return {
+                        "label": m.label, action: function (e, row) {
+                            url = replaceStringTemplateValues(m.url, row.getData());
+                            window.open(url, "_blank");
+                        }
+                    }
+
+                });
+
             var tabulator = new Tabulator(`#${gridId}`, {
                 data: rows,
                 filterMode: "local",
@@ -279,15 +294,17 @@
                 headerFilterLiveFilter: true,
                 height: null,
                 maxHeight: "600px",
-                columns: columns
+                columns: columns,
+                rowContextMenu: di.grid_row_menus ? grid_row_menus : null,
 
             });
-            $(`#${gridId}_export`).show();
 
+
+            $(`#${gridId}_export`).show();
             $(`#${gridId}_export`).click(() => tabulator.download("csv", `${gridId}_data.csv`));
             $(`#${gridId}_rowcount`).text(rows.length);
             $(`#${gridId}_title`).prop('title', query);
-
+            $("#loading").hide();
             return tabulator;
         }
 
@@ -391,6 +408,7 @@
             };
             $(`#${containerId}_rowcount`).text(rows.length);
             $(`#${containerId}_title`).prop('title', query);
+            $("#loading").hide();
             return new Chart(ctx, chartConfig);
         }
 
