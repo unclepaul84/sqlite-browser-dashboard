@@ -56,28 +56,29 @@
     <script src="js/chart.umd.js"></script>
     <script src="js/configValidator.js"></script>
     <script src="js/mermaid.min.js"></script>
-    <script>mermaid.initialize({ startOnLoad: true });</script>
+    <script src="js/marked.min.js"></script>
+
     <script>
 
         initSqlite().then((sqlite3) => {
 
             const urlParams = new URLSearchParams(window.location.search);
 
-            url = urlParams.get('url');
+            const config_source_path = urlParams.get('url');
 
 
-            if (!url) {
+            if (!config_source_path) {
                 showErrorToast(`must provide [?url=<your_url>] query parameter!`);
                 return;
             }
 
-            fetch(`${url}/index.json?date=${new Date()}`).then(async resp => {
+            fetch(`${config_source_path}/index.json?date=${new Date()}`).then(async resp => {
 
                 $("#loading").hide();
 
                 if (!resp.ok) {
 
-                    showErrorToast(`Error loading config file from ${url}: ${resp.statusText}`);
+                    showErrorToast(`Error loading config file from ${config_source_path}: ${resp.statusText}`);
                 }
 
                 resp.json().then(json => {
@@ -152,13 +153,50 @@
 
             });
 
+            function loadDocumentation(template) {
+                $("#documentation").hide();
+                if (!template.documentation_url)
+                    return;
+                var doc_url = template.documentation_url;
+
+                if (!doc_url.includes('/'))
+                    doc_url = config_source_path + "/" + doc_url;
+
+                fetch(doc_url + "?" + new Date()).then(async resp => {
+                    if (!resp.ok) {
+
+                        showErrorToast(`Error loading documentation file from ${doc_url}: ${resp.statusText}`);
+                        return;
+                    }
+
+                    var markdown = await resp.text();
+
+                    $("#documentation").html(marked.parse(markdown));
+
+                    $("#documentation").show();
+
+                })
+
+
+
+
+            }
+
             function loadDataSet(dataset, full_config) {
 
                 $('#grids').empty();
 
                 document.title = dataset.title;
 
-                loadSqliteFile(dataset.title, dataset.db_url).then(db => {
+                var db_url = dataset.db_url;
+
+                if (!db_url.includes('/'))
+                    db_url = config_source_path + "/" + db_url;
+
+              
+
+
+                loadSqliteFile(dataset.title, db_url).then(db => {
 
                     $("#loading").hide();
 
@@ -169,6 +207,8 @@
                     if (!template) {
                         showErrorToast(`Could not find dashboard template named [${dataset.dashboard_items_tempate}]`);
                     }
+                    
+                    loadDocumentation(template);
 
                     template.dashboard_items.forEach(di => {
                         if (di.templated)
@@ -674,8 +714,9 @@
             class="">Database Schema</a>
 
     </div>
+    <div id="documentation" style="display: none; margin: 10px; height: 300px; overflow-y:auto"></div>
     <div id="grids" class="w3-container">
-        <div id="grid" style="margin: 5px;"></div>
+
     </div>
 
     <div id="customQueryModal" class="w3-modal">
