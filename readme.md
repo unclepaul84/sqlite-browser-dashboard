@@ -82,10 +82,10 @@ Create an `index.json` file with the following structure:
 
 #### Dashboard Item Configuration
 - `type`: Visualization type (`grid` or `chart`)
-- `title`: Display name for the view (supports templating with ${variable})
+- `title`: Display name for the view (supports templating with ${variable} when templated=True)
 - `query`: SQL query to execute (supports templating)
 - `templated`: Boolean indicating if this is a template view
-- `parent`: Title of the parent view (for nested views)
+- `parent`: Title of the parent view (for nested(templated) views)
 #### Grid Configuration
 - `grid_row_menus`: Array of context menu items for grid rows
   - `label`: Display text for the menu item
@@ -109,7 +109,7 @@ Create an `index.json` file with the following structure:
 
 ### Template Variables
 
-Template variables can be used in both titles and queries using `${variable}` syntax. Variables are populated from the parent row's data when clicking on a row.
+Template variables can be used in both titles and queries using `${variable}` syntax when dashboard_item.templated=True. Variables are populated from the parent row's data when clicking on a row.
 
 Example:
 ```sql
@@ -124,6 +124,7 @@ Each grid includes:
 - Row count display
 - Resizable columns
 - Live filtering
+- right click menu items (if configured)
 
 ## Custom Queries
 
@@ -131,7 +132,6 @@ The dashboard includes a custom query interface that allows:
 - Direct SQL query execution
 - Table listing
 - Results displayed in a filterable grid
-- Error handling with toast notifications
 
 ## Usage
 
