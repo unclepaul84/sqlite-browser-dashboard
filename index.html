@@ -184,7 +184,7 @@
                         $(`#${gridId}_title`).text(di.title);
 
 
-                        var vis_result = queryAndBuildVisualization(db, di, di.query, gridId, dataset.title);
+                        var vis_result = queryAndBuildVisualization(db, di, di.query, gridId, di.title);
 
                         if (vis_result[0] === "grid") {
                             vis_result[1].on("rowClick", function (e, row) {
@@ -195,13 +195,13 @@
 
                                 template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
 
-                                    title = replaceStringTemplateValues(childDi.title, data);
+                                    const child_title = replaceStringTemplateValues(childDi.title, data);
 
-                                    const childGridId = `child_grid_${title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                                    const childGridId = `child_grid_${child_title.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
                                     $(`#${gridId}_visualization_container_children`).append(`<div id="${childGridId}_visualization_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
 
-                                    $(`#${childGridId}_title`).text(title);
+                                    $(`#${childGridId}_title`).text(child_title);
                                     $(`#${childGridId}_title`).on("dblclick", function (el) {
                                         showCustomQueryModal();
                                         $('#customQueryText').val(this.title);
@@ -211,7 +211,8 @@
                                     $("#loading").show();
 
                                     try {
-                                        queryAndBuildVisualization(db, childDi, replaceStringTemplateValues(childDi.query, data), childGridId, title);
+                                        
+                                        queryAndBuildVisualization(db, childDi, replaceStringTemplateValues(childDi.query, data), childGridId, replaceStringTemplateValues(child_title, data) );
 
                                     } finally {
 
@@ -384,13 +385,16 @@
 
             const labels = rows.map(row => row[config.options.xField]);
             const values = rows.map(row => row[config.options.yField]);
+            
+
+            console.warn("createchart " + title);
 
             const chartConfig = {
                 type: config.chartType,
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: title || '',
+                        label: config.options.title || '',
                         data: values,
                         backgroundColor: generateRandomColors(labels)
 
