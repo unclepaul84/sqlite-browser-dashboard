@@ -55,7 +55,7 @@ Create an `index.json` file with the following structure:
           "options": {
             "xField": "category",
             "yField": "total",
-            "chartTitle": "Sales by Category"
+            "title": "Sales by Category"
           }
         },
         {
