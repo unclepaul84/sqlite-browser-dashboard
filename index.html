@@ -55,6 +55,8 @@
     <script src="js/routie.js"></script>
     <script src="js/chart.umd.js"></script>
     <script src="js/configValidator.js"></script>
+    <script src="js/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: true });</script>
     <script>
 
         initSqlite().then((sqlite3) => {
@@ -131,6 +133,7 @@
 
                             $('#dataSetSelect').val(name);
                             $('#customQueryBtn').show();
+                            $('#schemaBtn').show();
                             try {
                                 $("#loading").show();
 
@@ -517,6 +520,109 @@
             document.getElementById('customQueryModal').style.display = 'block';
 
         }
+        function generateERDiagram(db) {
+
+           $("#erDiagramModal").remove();
+             
+            const rows = [];
+
+            // Query to get table and column information including foreign keys
+            const query = `
+        WITH fk_info AS (
+            SELECT 
+                m.name as table_name,
+                fk.'from' as column_name,
+                fk.'table' as referenced_table,
+                fk.'to' as referenced_column
+            FROM sqlite_master m
+            JOIN pragma_foreign_key_list(m.name) fk
+            WHERE m.type = 'table'
+        )
+        SELECT 
+            m.name as table_name,
+            p.name as column_name,
+            p.type as data_type,
+            CASE WHEN p.pk = 1 THEN 'PK' ELSE '' END as key_type,
+            fk.referenced_table,
+            fk.referenced_column
+        FROM sqlite_master m
+        JOIN pragma_table_info(m.name) p
+        LEFT JOIN fk_info fk ON m.name = fk.table_name AND p.name = fk.column_name
+        WHERE m.type = 'table'
+        ORDER BY m.name, p.cid;
+    `;
+
+            db.exec({
+                sql: query,
+                rowMode: "object",
+                resultRows: rows
+            });
+
+            // Generate Mermaid markup
+            let mermaidCode = 'erDiagram\n';
+            let currentTable = '';
+            let relationships = new Set();
+
+            rows.forEach(row => {
+                if (currentTable !== row.table_name) {
+                    currentTable = row.table_name;
+                    mermaidCode += `    ${currentTable} {\n`;
+                }
+
+                // Add column definition
+                const keyType = row.key_type === 'PK' ? 'PK' : '';
+                mermaidCode += `        ${row.data_type} ${row.column_name} ${keyType}\n`;
+
+                // Add relationship if foreign key
+                if (row.referenced_table) {
+                    const relationship = `    ${row.table_name} }o--|| ${row.referenced_table} : "${row.column_name}"\n`;
+                    relationships.add(relationship);
+                }
+
+                // Close table definition if next row is different table
+                if (!rows[rows.indexOf(row) + 1] || rows[rows.indexOf(row) + 1].table_name !== currentTable) {
+                    mermaidCode += '    }\n';
+                }
+            });
+
+            // Add relationships at the end
+            relationships.forEach(rel => {
+                mermaidCode += rel;
+            });
+
+            // Create diagram container
+            const diagramContainer = document.createElement('div');
+            diagramContainer.className = 'mermaid';
+            diagramContainer.textContent = mermaidCode;
+  
+         
+
+            // Create modal for diagram
+            const modal = document.createElement('div');
+            modal.id = 'erDiagramModal';
+            modal.className = 'w3-modal';
+            modal.innerHTML = `
+        <div class="w3-modal-content">
+            <header class="w3-container w3-blue">
+                <span onclick="document.getElementById('erDiagramModal').style.display='none'" 
+                      class="w3-button w3-display-topright">&times;</span>
+                <h4>Database Schema</h4>
+            </header>
+            <div class="w3-container w3-margin" id="diagramContainer"></div>
+        </div>
+    `;
+
+            // Add elements to page
+            document.body.appendChild(modal);
+            document.getElementById('diagramContainer').appendChild(diagramContainer);
+
+            document.getElementById('erDiagramModal').style.display = 'block';
+           mermaid.init(undefined, diagramContainer);
+        }
+
+        function showDatabaseSchema() {
+            generateERDiagram(window.current_db);
+        }
 
     </script>
 </head>
@@ -532,6 +638,8 @@
         </select>
         <a id="customQueryBtn" style="display: none;" href="javascript: void(0);"
             onclick="javascript:showCustomQueryModal()" class="">Custom Query</a>
+        <a id="schemaBtn" style="display: none;" href="javascript: void(0);" onclick="javascript:showDatabaseSchema()"
+            class="">Database Schema</a>
 
     </div>
     <div id="grids" class="w3-container">
@@ -555,6 +663,7 @@
                         style="width: 100%;height: 150px;"></textarea></div>
                 <div class="w3-container w3-margin"><button class="w3-button w3-blue"
                         onclick="javascript:runCustomQuery();">Run</button></div>
+
                 <div class="w3-container w3-margin">
                     <div id="customQueryGrid"></div>
                 </div>
