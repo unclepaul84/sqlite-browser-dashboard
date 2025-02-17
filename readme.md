@@ -10,8 +10,11 @@ A web-based dashboard for viewing and querying SQLite databases with configurabl
 - Custom SQL query interface
 - Nested data views with parent-child relationships
 - Real-time header filtering
+- Chart visualizations (bar, line, pie, doughnut)
+- Row context menus with templated URLs
 - GitHub pages hostable
 - Supports loading sqlite databases from GitHub pages
+
 
 ## Live Demo
 https://unclepaul84.github.io/sqlite-browser-dashboard/?url=/sqlite-data-host/#dataset/Legislators
@@ -34,14 +37,32 @@ Create an `index.json` file with the following structure:
       "name": "template_name",
       "dashboard_items": [
         {
-          "title": "Main View",
-          "query": "SELECT * FROM table_name",
-          "templated": false
+          "title": "Sales Grid",
+          "type": "grid",
+          "query": "SELECT * FROM sales",
+          "grid_row_menus": [
+            {
+              "label": "View Details",
+              "url": "https://example.com/sale/${id}"
+            }
+          ]
+        },
+        {
+          "title": "Sales Chart",
+          "type": "chart",
+          "chartType": "bar",
+          "query": "SELECT category, SUM(amount) as total FROM sales GROUP BY category",
+          "options": {
+            "xField": "category",
+            "yField": "total",
+            "chartTitle": "Sales by Category"
+          }
         },
         {
           "title": "Detail View - ${id}",
+          "type": "grid",
           "query": "SELECT * FROM details WHERE parent_id = ${id}",
-          "parent": "Main View",
+          "parent": "Sales Grid",
           "templated": true
         }
       ]
@@ -52,10 +73,16 @@ Create an `index.json` file with the following structure:
 
 ### Configuration Fields
 
-#### Dataset Configuration
-- `title`: Display name for the dataset
-- `db_url`: URL path to the SQLite database file
-- `dashboard_items_tempate`: Name of the template to use for this dataset
+#### Dashboard Item Configuration
+- `type`: Visualization type (`grid` or `chart`)
+- `title`: Display name for the view (supports templating with ${variable})
+- `query`: SQL query to execute (supports templating)
+- `templated`: Boolean indicating if this is a template view
+- `parent`: Title of the parent view (for nested views)
+#### Grid Configuration
+- `grid_row_menus`: Array of context menu items for grid rows
+  - `label`: Display text for the menu item
+  - `url`: URL template with row data variables (supports ${variable} syntax)
 
 #### Dashboard Template Configuration
 - `name`: Unique identifier for the template
@@ -64,6 +91,13 @@ Create an `index.json` file with the following structure:
   - `query`: SQL query to execute (supports templating)
   - `templated`: Boolean indicating if this is a template view
   - `parent`: Title of the parent view (for nested views)
+
+#### Chart Configuration
+- `chartType`: Type of chart (`bar`, `line`, `pie`, `doughnut`)
+- `options`: Chart display options
+  - `xField`: Column name for X-axis data
+  - `yField`: Column name for Y-axis data
+  - `chartTitle`: Title displayed above the chart
 
 ### Template Variables
 
