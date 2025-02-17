@@ -1,6 +1,6 @@
 # SQLite Browser Dashboard
 
-A web-based dashboard for viewing and querying SQLite databases with configurable views and filters.
+Browser based (SPA) based dashboard engine for viewing and querying SQLite databases with configurable views and filters.
 
 ![image](docs/screenshot.png)
 
