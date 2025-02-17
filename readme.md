@@ -41,6 +41,7 @@ Create an `index.json` file with the following structure:
   "dashboard_templates": [
     {
       "name": "template_name",
+     "documentation_url": "sales.md",
       "dashboard_items": [
         {
           "title": "Sales Grid",
@@ -92,6 +93,7 @@ Create an `index.json` file with the following structure:
 
 #### Dashboard Template Configuration
 - `name`: Unique identifier for the template
+- `documentation_url`: path to markdown file
 - `dashboard_items`: Array of view configurations
   - `title`: Display name for the view (supports templating with ${variable})
   - `query`: SQL query to execute (supports templating)
