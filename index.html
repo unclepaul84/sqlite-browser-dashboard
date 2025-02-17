@@ -211,8 +211,8 @@
                                     $("#loading").show();
 
                                     try {
-                                        
-                                        queryAndBuildVisualization(db, childDi, replaceStringTemplateValues(childDi.query, data), childGridId, replaceStringTemplateValues(child_title, data) );
+
+                                        queryAndBuildVisualization(db, childDi, replaceStringTemplateValues(childDi.query, data), childGridId, replaceStringTemplateValues(child_title, data));
 
                                     } finally {
 
@@ -274,9 +274,9 @@
             })) : [];
 
 
-            grid_row_menus = null;
-            
-            if (di.grid_row_menus)
+            var grid_row_menus = null;
+
+            if (di && di.grid_row_menus && Array.isArray(di.grid_row_menus)) {
                 grid_row_menus = di.grid_row_menus.map(m => {
 
                     return {
@@ -287,6 +287,7 @@
                     }
 
                 });
+            }
 
             var tabulator = new Tabulator(`#${gridId}`, {
                 data: rows,
@@ -296,7 +297,7 @@
                 height: null,
                 maxHeight: "600px",
                 columns: columns,
-                rowContextMenu: di.grid_row_menus ? grid_row_menus : null,
+                rowContextMenu: grid_row_menus ? grid_row_menus : null,
 
             });
 
@@ -385,7 +386,7 @@
 
             const labels = rows.map(row => row[config.options.xField]);
             const values = rows.map(row => row[config.options.yField]);
-            
+
 
             console.warn("createchart " + title);
 
