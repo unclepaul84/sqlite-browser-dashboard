@@ -520,15 +520,15 @@
             document.getElementById('customQueryModal').style.display = 'block';
 
         }
-        function generateERDiagram(db) {
 
-           $("#erDiagramModal").remove();
-             
+        function generateERDiagram(db) {
+            $("#erDiagramModal").remove();
             const rows = [];
 
-            // Query to get table and column information including foreign keys
+            // Updated query to include table and column comments
             const query = `
-        WITH fk_info AS (
+        WITH 
+        fk_info AS (
             SELECT 
                 m.name as table_name,
                 fk.'from' as column_name,
@@ -537,6 +537,13 @@
             FROM sqlite_master m
             JOIN pragma_foreign_key_list(m.name) fk
             WHERE m.type = 'table'
+        ),
+        table_comments AS (
+            SELECT 
+                tbl_name,
+                sql
+            FROM sqlite_master 
+            WHERE type = 'table'
         )
         SELECT 
             m.name as table_name,
@@ -544,10 +551,12 @@
             p.type as data_type,
             CASE WHEN p.pk = 1 THEN 'PK' ELSE '' END as key_type,
             fk.referenced_table,
-            fk.referenced_column
+            fk.referenced_column,
+            tc.sql as table_sql
         FROM sqlite_master m
         JOIN pragma_table_info(m.name) p
         LEFT JOIN fk_info fk ON m.name = fk.table_name AND p.name = fk.column_name
+        LEFT JOIN table_comments tc ON m.name = tc.tbl_name
         WHERE m.type = 'table'
         ORDER BY m.name, p.cid;
     `;
@@ -558,46 +567,72 @@
                 resultRows: rows
             });
 
+            // Extract comments from CREATE TABLE statements
+            function extractComments(sql) {
+                const comments = {};
+                if (!sql) return comments;
+
+                // Match COMMENT clauses in CREATE TABLE statement
+                const commentRegex = /COMMENT\s+'([^']+)'/gi;
+                const matches = sql.matchAll(commentRegex);
+
+                for (const match of matches) {
+                    const columnDef = sql.substring(0, match.index).trim().split('\n').pop();
+                    const columnName = columnDef.split(/[\s(,]+/)[0];
+                    comments[columnName] = match[1];
+                }
+
+                return comments;
+            }
+
             // Generate Mermaid markup
             let mermaidCode = 'erDiagram\n';
             let currentTable = '';
             let relationships = new Set();
+            let tableComments = {};
 
             rows.forEach(row => {
                 if (currentTable !== row.table_name) {
+                    // Close previous table if exists
+                    if (currentTable) {
+                        mermaidCode += '    }\n';
+                    }
+
                     currentTable = row.table_name;
-                    mermaidCode += `    ${currentTable} {\n`;
+                    tableComments = extractComments(row.table_sql);
+
+                    // Add table with comment if exists
+                    const tableComment = tableComments[currentTable] ? ` "%% ${tableComments[currentTable]}"` : '';
+                    mermaidCode += `    ${currentTable}${tableComment} {\n`;
                 }
 
-                // Add column definition
+                // Add column definition with comment if exists
                 const keyType = row.key_type === 'PK' ? 'PK' : '';
-                mermaidCode += `        ${row.data_type} ${row.column_name} ${keyType}\n`;
+                const columnComment = tableComments[row.column_name] ? ` "%% ${tableComments[row.column_name]}"` : '';
+                mermaidCode += `        ${row.data_type} ${row.column_name} ${keyType}${columnComment}\n`;
 
                 // Add relationship if foreign key
                 if (row.referenced_table) {
                     const relationship = `    ${row.table_name} }o--|| ${row.referenced_table} : "${row.column_name}"\n`;
                     relationships.add(relationship);
                 }
-
-                // Close table definition if next row is different table
-                if (!rows[rows.indexOf(row) + 1] || rows[rows.indexOf(row) + 1].table_name !== currentTable) {
-                    mermaidCode += '    }\n';
-                }
             });
 
-            // Add relationships at the end
+            // Close last table
+            if (currentTable) {
+                mermaidCode += '    }\n';
+            }
+
+            // Add relationships
             relationships.forEach(rel => {
                 mermaidCode += rel;
             });
 
-            // Create diagram container
+            // Create and display diagram
             const diagramContainer = document.createElement('div');
             diagramContainer.className = 'mermaid';
             diagramContainer.textContent = mermaidCode;
-  
-         
 
-            // Create modal for diagram
             const modal = document.createElement('div');
             modal.id = 'erDiagramModal';
             modal.className = 'w3-modal';
@@ -612,14 +647,11 @@
         </div>
     `;
 
-            // Add elements to page
             document.body.appendChild(modal);
             document.getElementById('diagramContainer').appendChild(diagramContainer);
-
             document.getElementById('erDiagramModal').style.display = 'block';
-           mermaid.init(undefined, diagramContainer);
+            mermaid.init(undefined, diagramContainer);
         }
-
         function showDatabaseSchema() {
             generateERDiagram(window.current_db);
         }
