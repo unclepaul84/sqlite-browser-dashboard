@@ -13,6 +13,8 @@ A web-based dashboard for viewing and querying SQLite databases with configurabl
 - GitHub pages hostable
 - Supports loading sqlite databases from GitHub pages
 
+## Live Demo
+https://unclepaul84.github.io/sqlite-browser-dashboard/?url=/sqlite-data-host/#dataset/Legislators
 
 ## Configuration
 
