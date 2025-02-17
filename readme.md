@@ -97,7 +97,7 @@ Create an `index.json` file with the following structure:
 - `options`: Chart display options
   - `xField`: Column name for X-axis data
   - `yField`: Column name for Y-axis data
-  - `chartTitle`: Title displayed above the chart
+  - `title`: name of the data point
 
 ### Template Variables
 
