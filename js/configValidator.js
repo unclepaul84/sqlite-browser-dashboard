@@ -68,7 +68,7 @@ class ConfigValidator {
                 if (item.type === 'chart') {
                     if (!item.chartType) {
                         errors.push(`Template[${idx}].items[${itemIdx}]: Chart type required for chart visualization`);
-                    } else if (!['bar', 'line', 'pie', 'scatter'].includes(item.chartType)) {
+                    } else if (!['bar', 'line', 'doughnut', 'pie'].includes(item.chartType)) {
                         errors.push(`Template[${idx}].items[${itemIdx}]: Invalid chart type '${item.chartType}'`);
                     }
                     
