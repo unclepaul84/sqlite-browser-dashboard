@@ -2,6 +2,8 @@
 
 A web-based dashboard for viewing and querying SQLite databases with configurable views and filters.
 
+![image](docs/screenshot.png)
+
 ## Features
 
 - Load multiple SQLite databases
@@ -16,10 +18,14 @@ A web-based dashboard for viewing and querying SQLite databases with configurabl
 - Supports loading sqlite databases from GitHub pages
 
 
+
 ## Live Demo
 https://unclepaul84.github.io/sqlite-browser-dashboard/?url=/sqlite-data-host/#dataset/Legislators
 
 ## Configuration
+
+#### Example
+https://github.com/unclepaul84/sqlite-data-host/blob/main/index.json
 
 Create an `index.json` file with the following structure:
 
