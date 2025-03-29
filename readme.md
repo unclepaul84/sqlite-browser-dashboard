@@ -135,10 +135,13 @@ The dashboard includes a custom query interface that allows:
 
 ## Usage
 
-1. Host the files on a web server or GitHub pages
-2. Configure your `index.json` file
-3. Access the dashboard via URL with `?url=path/to/config/directory`
-4. Select a dataset from the dropdown to load views
+1. Fork this repo
+1. Enable GitHub Pages on it
+2. Create another repo to host index.js and your SqliteDatabase
+3. Enable GitHub pages on it
+5. Configure your `index.json` file
+6. Access the dashboard via URL with `?url=path/to/config/directory` parameter 
+7. Select a dataset from the dropdown to load views
 
 ## Technical Requirements
 
