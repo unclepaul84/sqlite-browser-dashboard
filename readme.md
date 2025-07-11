@@ -16,7 +16,7 @@ Browser based (SPA) based dashboard engine for viewing and querying SQLite datab
 - Row context menus with templated URLs
 - GitHub pages hostable
 - Supports loading sqlite databases from GitHub pages
-
+- Suports markdown and mermaid rendering in grid
 
 
 ## Live Demo
@@ -125,8 +125,24 @@ Each grid includes:
 - Resizable columns
 - Live filtering
 - right click menu items (if configured)
+- mermaid and markdown rendering in grid cells
 
-## Custom Queries
+### Mermaid and Markdown Rendering
+Mermaid diagrams and Markdown content can be rendered directly in grid cells. To have cell rendered as Mermaid or Markdown, use the following syntax in your SQL query:
+``` sql
+SELECT
+  id,
+  name,
+  markdown_column AS content_md,
+  mermaid_column AS content_mermaid
+
+ FROM your_table 
+ 
+ ```
+ Nothe that the columns `content_md` and `content_mermaid` will be rendered as Markdown and Mermaid diagrams respectively in the grid cells because the are suffixed with `_md` and `_mermaid`.
+ 
+ ## Custom Queries
+
 
 The dashboard includes a custom query interface that allows:
 - Direct SQL query execution

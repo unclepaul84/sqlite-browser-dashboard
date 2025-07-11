@@ -61,7 +61,7 @@
     <script>
 
         initSqlite().then((sqlite3) => {
-
+            mermaid.initialize({ startOnLoad: true });
             const urlParams = new URLSearchParams(window.location.search);
 
             const config_source_path = urlParams.get('url');
@@ -193,7 +193,7 @@
                 if (!db_url.includes('/'))
                     db_url = config_source_path + "/" + db_url;
 
-              
+
 
 
                 loadSqliteFile(dataset.title, db_url).then(db => {
@@ -207,7 +207,7 @@
                     if (!template) {
                         showErrorToast(`Could not find dashboard template named [${dataset.dashboard_items_tempate}]`);
                     }
-                    
+
                     loadDocumentation(template);
 
                     template.dashboard_items.forEach(di => {
@@ -270,6 +270,7 @@
 
                     });
 
+
                 }).catch(r => { showErrorToast(` error loading sql database from ${dataset.db_url}: ${r}`); $("#loading").hide(); });
             }
 
@@ -306,12 +307,39 @@
                     fieldTypes[field] = isNumeric ? { "sorter": 'number', "filter": 'input' } : { "sorter": 'string', "filter": 'input' };
                 });
             }
+
+
+            function markdown_formatter(cell) {
+                const value = cell.getValue();
+
+                if (value)
+                    return marked.parse(value); // Return the desired HTML
+                else
+                    return value;
+            }
+
+            function mermaid_formatter(cell, formatterParams, onRendered) {
+                const value = cell.getValue();
+
+                onRendered(function () {
+                    mermaid.run({
+                        querySelector: '.mermaidCell',
+                    });
+
+                });
+
+                if (value)
+                    return `<span class="mermaidCell">${value}</span>`; // Return the desired HTML
+                else
+                    return value;
+            }
+
             const columns = rows.length > 0 ? Object.keys(rows[0]).map(field => ({
                 title: field,
                 field: field,
                 headerFilter: fieldTypes[field]["filter"],
                 sorter: fieldTypes[field]["sorter"],
-
+                formatter: field.endsWith("_md") ? markdown_formatter : field.endsWith("_mermaid") ? mermaid_formatter : null,
 
                 headerFilterPlaceholder: `${field}=`
             })) : [];
@@ -350,6 +378,10 @@
             $(`#${gridId}_rowcount`).text(rows.length);
             $(`#${gridId}_title`).prop('title', query);
             $("#loading").hide();
+
+
+
+
             return tabulator;
         }
 
