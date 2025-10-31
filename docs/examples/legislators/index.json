@@ -1,0 +1,134 @@
+{
+    "datasets": [
+      
+        {
+            "title": "Legislators",
+            "db_url": "legislators.db",
+            "dashboard_items_tempate": "legislators"
+        }
+    ],
+    "dashboard_templates": [
+        {
+            "name": "legislators",
+            "dashboard_items": [
+             
+                {
+                    "title": "Top 10 Legislators by Office Count",
+                    "query": "WITH CTE AS (select * from legislators l INNER JOIN offices o on o.legislator_id = l.id) select id, name,  count(legislator_id) as offce_count from CTE GROUP BY id, name ORDER BY 3 DESC LIMIT 10;",     
+                    "grid_row_menus":[
+                        {
+                            "label": "Search google",
+                            "url": "https://www.google.com/search?q=${name}"
+                        }
+                    ]
+                },
+                
+                {
+                    "title": "${name} offices by ZIP area",
+                    "type": "chart",
+                    "chartType": "bar",
+                    "query": "SELECT substr(zip, 1, 2) as zip, count(*) as count FROM offices WHERE legislator_id = '${id}' group by 1;",
+                    "templated": true,
+                    "parent": "Top 10 Legislators by Office Count",
+                    "options": {
+                        "xField": "zip",
+                        "yField": "count",
+                        "title": "Office Count"
+                      
+                    }
+                },
+
+                {
+                    "title": "Chart",
+                    "type": "chart",
+                    "chartType": "bar",
+                    "query": "WITH CTE AS (select * from legislators l INNER JOIN offices o on o.legislator_id = l.id) select name,  count(legislator_id) as count from CTE GROUP BY name ORDER BY 2 DESC LIMIT 20;",
+                    "options": {
+                        "xField": "name",
+                        "yField": "count",
+                        "title": "Office Count"
+                      
+                    }
+                },
+                
+                {
+                    "title": "Chart 1",
+                    "type": "chart",
+                    "chartType": "pie",
+                    "query": "WITH CTE AS (select * from legislators l INNER JOIN offices o on o.legislator_id = l.id) select name,  count(legislator_id) as count from CTE GROUP BY name ORDER BY 2 DESC LIMIT 20;",
+                    "options": {
+                        "xField": "name",
+                        "yField": "count",
+                        "title": "Office Count"
+                        
+                    }
+                },
+                
+                
+                {
+                    "title": "Chart 3",
+                    "type": "chart",
+                    "chartType": "doughnut",
+                    "query": "WITH CTE AS (select * from legislators l INNER JOIN offices o on o.legislator_id = l.id) select name,  count(legislator_id) as count from CTE GROUP BY name ORDER BY 2 DESC LIMIT 20;",
+                    "options": {
+                        "xField": "name",
+                        "yField": "count",
+                        "title": "Office Count"
+                        
+                    }
+                },
+                {
+                    "title": "Chart 2",
+                    "type": "chart",
+                    "chartType": "line",
+                    "query": "WITH CTE AS (select * from legislators l INNER JOIN offices o on o.legislator_id = l.id) select name,  count(legislator_id) as count from CTE GROUP BY name ORDER BY 2 DESC LIMIT 20;",
+                    "options": {
+                        "xField": "name",
+                        "yField": "count",
+                        "title": "Office Count"
+                       
+                    }
+                },
+                {
+                    "title": "Legislators",
+                    "query": "SELECT * FROM legislators",
+                    "grid_row_menus":[
+                        {
+                            "label": "Search OpenSecrets",
+                            "url": "https://www.opensecrets.org/search?q=${id_opensecrets}"
+                        }
+                    ]
+
+                    
+                },
+                {
+                    "title": "Offices",
+                    "query": "SELECT * FROM offices WHERE legislator_id = '${id}';",
+                    "parent": "Legislators",
+                    "templated": true,
+
+                    "grid_row_menus":[
+                        {
+                            "label": "Search google maps",
+                            "url": "http://maps.google.com/?q=${address},${city},${state}"
+                        }
+                    ]
+                },
+                {
+                    "title": "${name} offices by state",
+                    "type": "chart",
+                    "chartType": "bar",
+                    "query": "WITH CTE AS (select * from legislators l INNER JOIN offices o on o.legislator_id = l.id) select state,  count(legislator_id) as count from CTE where id = '${id}' GROUP BY state ORDER BY 2 DESC LIMIT 20;",
+                    "templated": true,
+                    "parent": "Legislators",
+                    "options": {
+                        "xField": "state",
+                        "yField": "count",
+                        "title": "Office Count"
+                      
+                    }
+                }
+            ]
+        }
+    ]
+}

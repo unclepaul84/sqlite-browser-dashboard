@@ -109,6 +109,15 @@
                     if (!titlesValid)
                         return;
 
+                    // Mark items with parent field as templated (FR-014)
+                    json.dashboard_templates.forEach(template => {
+                        template.dashboard_items.forEach(item => {
+                            if (item.parent) {
+                                item.templated = true;
+                            }
+                        });
+                    });
+
                     // Get the select element using jQuery
                     const $select = $('#dataSetSelect');
 
@@ -231,39 +240,11 @@
 
                         if (vis_result[0] === "grid") {
                             vis_result[1].on("rowClick", function (e, row) {
-
                                 const data = row.getData();
-
-                                $(`#${gridId}_visualization_container_children`).empty();
-
-                                template.dashboard_items.filter(i => i.parent === di.title).forEach(childDi => {
-
-                                    const child_title = replaceStringTemplateValues(childDi.title, data);
-
-                                    const childGridId = `child_grid_${child_title.replace(/[^a-zA-Z0-9]/g, '_')}`;
-
-                                    $(`#${gridId}_visualization_container_children`).append(`<div id="${childGridId}_visualization_container" style="margin-top:5px" class="w3-container"><span class="w3-tag w3-blue" id="${childGridId}_title" ></span><span id="${childGridId}_rowcount"  class="w3-tag"></span><a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${childGridId}"></div></div>`);
-
-                                    $(`#${childGridId}_title`).text(child_title);
-                                    $(`#${childGridId}_title`).on("dblclick", function (el) {
-                                        showCustomQueryModal();
-                                        $('#customQueryText').val(this.title);
-                                        runCustomQuery();
-                                    });
-
-                                    $("#loading").show();
-
-                                    try {
-
-                                        queryAndBuildVisualization(db, childDi, replaceStringTemplateValues(childDi.query, data), childGridId, replaceStringTemplateValues(child_title, data));
-
-                                    } finally {
-
-
-                                    }
-
-                                });
-
+                                const clickedRowIndex = row.getPosition();
+                                
+                                // Render nested grids recursively
+                                renderNestedGrids(db, template, di.title, data, gridId, clickedRowIndex, 1);
                             });
                         }
 
@@ -275,6 +256,92 @@
             }
 
         });
+
+        /**
+         * Recursively render nested grids for unlimited parent-child hierarchy depth
+         * @param {Object} db - SQLite database instance
+         * @param {Object} template - Dashboard template configuration
+         * @param {string} parentTitle - Title of the parent grid item
+         * @param {Object} rowData - Data from the clicked row
+         * @param {string} parentGridId - Container ID of the parent grid
+         * @param {number} rowIndex - Index of the clicked row
+         * @param {number} depth - Current nesting depth (starts at 1)
+         */
+        function renderNestedGrids(db, template, parentTitle, rowData, parentGridId, rowIndex, depth) {
+            // Generate unique container ID: parentGridId_rowIndex
+            const nestedContainerId = `${parentGridId}_row${rowIndex}_children`;
+            
+            // Check if children already exist (toggle collapse/expand)
+            if ($(`#${nestedContainerId}`).length > 0) {
+                // Children exist - collapse and remove them
+                $(`#${nestedContainerId}`).remove();
+                return;
+            }
+            
+            // Create children container if it doesn't exist
+            if ($(`#${parentGridId}_visualization_container_children`).length === 0) {
+                $(`#${parentGridId}_visualization_container`).append(
+                    `<div id="${parentGridId}_visualization_container_children"></div>`
+                );
+            }
+            
+            // Add nested container with visual hierarchy (indentation) at the TOP for better visibility
+            const indentStyle = `margin-left: ${depth * 20}px; border-left: 2px solid #2196F3; padding-left: 10px; position: relative;`;
+            $(`#${parentGridId}_visualization_container_children`).prepend(
+                `<div id="${nestedContainerId}" style="${indentStyle}">
+                    <button onclick="$('#${nestedContainerId}').remove();" style="position: absolute; right: 5px; top: 5px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px; font-weight: bold; z-index: 9999;">×</button>
+                </div>`
+            );
+            
+            // Find all child items for this parent
+            const childItems = template.dashboard_items.filter(i => i.parent === parentTitle);
+            
+            childItems.forEach(childDi => {
+                const child_title = replaceStringTemplateValues(childDi.title, rowData);
+                const childGridId = `${parentGridId}_row${rowIndex}_${child_title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                // Create child grid container
+                $(`#${nestedContainerId}`).append(
+                    `<div id="${childGridId}_visualization_container" style="margin-top:5px" class="w3-container">
+                        <span class="w3-tag w3-blue" id="${childGridId}_title"></span>
+                        <span id="${childGridId}_rowcount" class="w3-tag"></span>
+                        <a id="${childGridId}_export" style="display:none" href="javascript:void(0);">Export</a>
+                        <div id="${childGridId}"></div>
+                        <div id="${childGridId}_visualization_container_children"></div>
+                    </div>`
+                );
+                
+                $(`#${childGridId}_title`).text(child_title);
+                $(`#${childGridId}_title`).on("dblclick", function (el) {
+                    showCustomQueryModal();
+                    $('#customQueryText').val(this.title);
+                    runCustomQuery();
+                });
+                
+                $("#loading").show();
+                
+                try {
+                    const childQuery = replaceStringTemplateValues(childDi.query, rowData);
+                    const vis_result = queryAndBuildVisualization(db, childDi, childQuery, childGridId, child_title);
+                    
+                    // Attach row click handler for recursive nesting
+                    if (vis_result[0] === "grid") {
+                        vis_result[1].on("rowClick", function (e, row) {
+                            const childRowData = row.getData();
+                            const childRowIndex = row.getPosition();
+                            
+                            // Recursively render next level (merge parent and child data)
+                            const mergedData = { ...rowData, ...childRowData };
+                            renderNestedGrids(db, template, childDi.title, mergedData, childGridId, childRowIndex, depth + 1);
+                        });
+                    }
+                } catch (ex) {
+                    showErrorToast(`Error rendering nested grid '${child_title}': ${ex.message}`);
+                } finally {
+                    $("#loading").hide();
+                }
+            });
+        }
 
         function queryAndBuildVisualization(db, di, query, containerId, title) {
 
