@@ -1,1 +1,23 @@
+# Data directory
 data/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# Editor directories
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.*
+
+# Log files
+*.log
+
+# Temporary files
+*.bak
+*~

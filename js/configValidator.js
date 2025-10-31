@@ -1,4 +1,90 @@
 class ConfigValidator {
+    /**
+     * Build parent chain for a dashboard item
+     * @param {string} itemTitle - Title of the item to trace
+     * @param {Array} items - Array of all dashboard items
+     * @returns {Array} Array of titles from root to itemTitle (e.g., ['root', 'parent', 'child'])
+     */
+    static buildParentChain(itemTitle, items) {
+        const chain = [];
+        const itemMap = new Map(items.map(item => [item.title, item]));
+        
+        let current = itemTitle;
+        const visited = new Set();
+        
+        while (current) {
+            if (visited.has(current)) {
+                // Circular reference detected - return chain with duplicate to indicate cycle
+                chain.push(current);
+                break;
+            }
+            
+            visited.add(current);
+            chain.push(current);
+            
+            const item = itemMap.get(current);
+            current = item?.parent || null;
+        }
+        
+        return chain.reverse(); // Return root-to-leaf order
+    }
+
+    /**
+     * Detect circular references in parent-child chains
+     * @param {Array} items - Array of dashboard items with parent fields
+     * @param {number} templateIdx - Index of template for error reporting
+     * @returns {Array} Array of error messages
+     */
+    static detectCircularReferences(items, templateIdx) {
+        const errors = [];
+        const itemTitles = new Set(items.map(item => item.title));
+        
+        items.forEach((item, itemIdx) => {
+            if (!item.parent) return; // Root items cannot have circular refs
+            
+            const chain = this.buildParentChain(item.title, items);
+            
+            // Check for circular reference (duplicate in chain)
+            const uniqueChain = new Set(chain);
+            if (uniqueChain.size !== chain.length) {
+                // Found circular reference
+                const cyclePath = chain.join(' → ');
+                errors.push({
+                    code: 'VAL-CIRCULAR-001',
+                    message: `Template[${templateIdx}].items[${itemIdx}]: Circular reference detected: ${cyclePath}`,
+                    itemTitle: item.title,
+                    chain: chain
+                });
+            }
+            
+            // Check for orphaned parent (parent not found in items)
+            if (item.parent && !itemTitles.has(item.parent)) {
+                errors.push({
+                    code: 'VAL-ORPHAN-002',
+                    message: `Template[${templateIdx}].items[${itemIdx}]: Parent item '${item.parent}' not found`,
+                    itemTitle: item.title,
+                    missingParent: item.parent
+                });
+            }
+        });
+        
+        // Check for excessive depth (warning, not error)
+        items.forEach((item, itemIdx) => {
+            const chain = this.buildParentChain(item.title, items);
+            if (chain.length > 10) {
+                errors.push({
+                    code: 'VAL-DEPTH-004',
+                    message: `Template[${templateIdx}].items[${itemIdx}]: Nesting depth ${chain.length} exceeds recommended limit (10). Performance may be impacted.`,
+                    itemTitle: item.title,
+                    depth: chain.length,
+                    severity: 'warning'
+                });
+            }
+        });
+        
+        return errors;
+    }
+
     static validateConfig(config) {
         const errors = [];
 
@@ -99,11 +185,12 @@ class ConfigValidator {
                         });
                     }
                 }
+            });
 
-                // Validate parent-child relationships
-                if (item.parent && !itemTitles.has(item.parent)) {
-                    errors.push(`Template[${idx}].items[${itemIdx}]: Parent item '${item.parent}' not found`);
-                }
+            // Validate parent-child relationships (circular references, orphaned parents)
+            const relationshipErrors = ConfigValidator.detectCircularReferences(template.dashboard_items, idx);
+            relationshipErrors.forEach(err => {
+                errors.push(err.message);
             });
         });
 

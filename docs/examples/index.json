@@ -1,0 +1,69 @@
+{
+  "datasets": [
+    {
+      "title": "Sales Data (5-Level Hierarchy)",
+      "db_url": "nested-test.db",
+      "dashboard_items_tempate": "5-Level Drill-Down"
+    }
+  ],
+  "dashboard_templates": [
+    {
+      "name": "5-Level Drill-Down",
+      "documentation_url": "",
+      "dashboard_items": [
+        {
+          "title": "Order Summary by Status",
+          "type": "chart",
+          "chartType": "bar",
+          "query": "SELECT status, COUNT(*) as order_count, SUM(total) as total_amount FROM orders GROUP BY status ORDER BY total_amount DESC",
+          "options": {
+            "xField": "status",
+            "yField": "total_amount",
+            "title": "Total Sales by Order Status"
+          }
+        },
+        {
+          "title": "Customers",
+          "type": "grid",
+          "query": "SELECT customer_id, name, email, total_orders FROM customers ORDER BY total_orders DESC"
+        },
+        {
+          "title": "Orders for ${name}",
+          "type": "grid",
+          "query": "SELECT order_id, order_date, status, total FROM orders WHERE customer_id = ${customer_id} ORDER BY order_date DESC",
+          "parent": "Customers"
+        },
+        {
+          "title": "Order Items Chart for ${name}",
+          "type": "chart",
+          "chartType": "doughnut",
+          "query": "SELECT li.product_name, SUM(li.quantity * li.unit_price) as total_spent FROM orders o JOIN line_items li ON o.order_id = li.order_id WHERE o.customer_id = ${customer_id} GROUP BY li.product_name ORDER BY total_spent DESC",
+          "parent": "Customers",
+          "options": {
+            "xField": "product_name",
+            "yField": "total_spent",
+            "title": "Product Sales Breakdown"
+          }
+        },
+        {
+          "title": "Line Items for Order #${order_id}",
+          "type": "grid",
+          "query": "SELECT line_item_id, product_name, quantity, unit_price, (quantity * unit_price) as total FROM line_items WHERE order_id = ${order_id}",
+          "parent": "Orders for ${name}"
+        },
+        {
+          "title": "Product Details: ${product_name}",
+          "type": "grid",
+          "query": "SELECT product_id, description, category, supplier, stock_level FROM products WHERE product_name = '${product_name}'",
+          "parent": "Line Items for Order #${order_id}"
+        },
+        {
+          "title": "Supplier Info for ${product_name}",
+          "type": "grid",
+          "query": "SELECT supplier_id, supplier_name, contact_email, phone, address FROM suppliers WHERE supplier = '${supplier}'",
+          "parent": "Product Details: ${product_name}"
+        }
+      ]
+    }
+  ]
+}
