@@ -1,0 +1,94 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Order Analytics Dashboard",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "KPI Overview",
+          "config": {
+            "tiles": [
+              {
+                "name": "Active",
+                "query": "SELECT COUNT(*) as count FROM orders WHERE status = 'Active'",
+                "description": "Orders currently being processed",
+                "color": "#4CAF50"
+              },
+              {
+                "name": "Completed",
+                "query": "SELECT COUNT(*) as count FROM orders WHERE status = 'Completed'",
+                "description": "Successfully delivered orders",
+                "color": "#2196F3"
+              },
+              {
+                "name": "Shipped",
+                "query": "SELECT COUNT(*) as count FROM orders WHERE status = 'Shipped'",
+                "description": "Orders in transit",
+                "color": "#FF9800"
+              },
+              {
+                "name": "Pending",
+                "query": "SELECT COUNT(*) as count FROM orders WHERE status = 'Pending'",
+                "description": "Awaiting processing",
+                "color": "#9C27B0"
+              },
+              {
+                "name": "Total Revenue",
+                "query": "SELECT ROUND(SUM(total), 2) as revenue FROM orders",
+                "description": "All-time total sales",
+                "color": "#00BCD4"
+              },
+              {
+                "name": "Avg Order",
+                "query": "SELECT ROUND(AVG(total), 2) as avg FROM orders",
+                "description": "Average order value",
+                "color": "#607D8B"
+              },
+              {
+                "name": "Avg Order1",
+                "query": "SELECT ROUND(AVG(total), 2) as avg FROM orders",
+                "description": "Average order value",
+                "color": "#607D8B"
+              },
+              {
+                "name": "Avg Order2",
+                "query": "SELECT ROUND(AVG(total), 2) as avg FROM orders",
+                "description": "Average order value",
+                "color": "#607D8B"
+              },
+              {
+                "name": "Avg Order3",
+                "query": "SELECT ROUND(AVG(total), 2) as avg FROM orders",
+                "description": "Average order value",
+                "color": "#607D8B"
+              }
+            ]
+          }
+        },
+        {
+          "type": "grid",
+          "title": "Order Details",
+          "parent": "KPI Overview",
+          "query": "SELECT o.order_id, c.name as customer, o.order_date, o.status, o.total FROM orders o JOIN customers c ON o.customer_id = c.customer_id WHERE o.status = '${tile_name}' ORDER BY o.order_date DESC"
+        },
+        {
+          "type": "grid",
+          "title": "All Orders",
+          "query": "SELECT o.order_id, c.name as customer, o.order_date, o.status, o.total FROM orders o JOIN customers c ON o.customer_id = c.customer_id ORDER BY o.order_date DESC"
+        },
+        {
+          "type": "grid",
+          "title": "Product Inventory",
+          "query": "SELECT product_name, category, price, stock_level FROM products ORDER BY category, product_name"
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "title": "Order Analytics Dashboard",
+      "db_url": "sample.db",
+      "dashboard_items_tempate": "Order Analytics Dashboard"
+    }
+  ]
+}

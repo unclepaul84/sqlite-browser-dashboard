@@ -9,6 +9,7 @@ Browser based (SPA) based dashboard engine for viewing and querying SQLite datab
 - Load multiple SQLite databases
 - Configurable dashboard templates
 - Interactive data grids with filtering and sorting
+- **Tile widgets for KPI displays with clickable filtering** (NEW)
 - Custom SQL query interface
 - Nested data views with parent-child relationships
 - Real-time header filtering
@@ -81,11 +82,172 @@ Create an `index.json` file with the following structure:
 ### Configuration Fields
 
 #### Dashboard Item Configuration
-- `type`: Visualization type (`grid` or `chart`)
+- `type`: Visualization type (`grid`, `chart`, or `tiles`)
 - `title`: Display name for the view (supports templating with ${variable} when templated=True)
-- `query`: SQL query to execute (supports templating)
+- `query`: SQL query to execute (supports templating) - not used for tiles
 - `templated`: Boolean indicating if this is a template view
 - `parent`: Title of the parent view (for nested(templated) views)
+
+#### Tile Widget Configuration (NEW)
+
+Tile widgets display key performance indicators (KPIs) as colored cards showing numeric values from SQL queries. Users can click tiles to filter child grids.
+
+**Important Constraints:**
+- Only one tile widget allowed per dashboard template
+- Tile widget must be the first item in `dashboard_items` array
+- Child grids use `${tile_name}` variable substitution
+
+**Configuration Structure:**
+```json
+{
+  "type": "tiles",
+  "title": "KPI Overview",
+  "config": {
+    "tiles": [
+      {
+        "name": "Active Orders",
+        "query": "SELECT COUNT(*) FROM orders WHERE status = 'Active'",
+        "description": "Orders currently being processed",
+        "color": "#4CAF50"
+      },
+      {
+        "name": "Completed",
+        "query": "SELECT COUNT(*) FROM orders WHERE status = 'Completed'",
+        "description": "Successfully delivered",
+        "color": "#2196F3"
+      }
+    ]
+  }
+}
+```
+
+**Tile Configuration Fields:**
+- `name` (required): Tile identifier - used for `${tile_name}` substitution in child queries
+- `query` (required): SQL query returning a single numeric value (first column of first row)
+- `description` (optional): Explanatory text displayed below the value
+- `color` (optional): CSS color value for tile background (hex, rgb, named colors) - default: `#4A90E2`
+
+**Child Grid with Tile Filtering:**
+```json
+{
+  "type": "grid",
+  "title": "Order Details",
+  "parent": "KPI Overview",
+  "query": "SELECT * FROM orders WHERE status = '${tile_name}'"
+}
+```
+
+When a user clicks the "Active Orders" tile, the child grid query becomes:
+```sql
+SELECT * FROM orders WHERE status = 'Active'
+```
+
+**Tile Query Examples:**
+```sql
+-- Count query
+SELECT COUNT(*) FROM orders WHERE status = 'Pending'
+
+-- Sum query
+SELECT SUM(total) FROM orders WHERE date >= '2025-01-01'
+
+-- Average query
+SELECT ROUND(AVG(price), 2) FROM products
+
+-- Complex aggregation
+SELECT COUNT(DISTINCT customer_id) FROM orders
+```
+
+**Value Formatting:**
+- Numbers < 1,000,000: Formatted with thousands separators (e.g., `1,234,567`)
+- Numbers >= 1,000,000: Abbreviated as millions (e.g., `1.2M`)
+- Numbers >= 1,000,000,000: Abbreviated as billions (e.g., `3.4B`)
+- Non-numeric values: Displayed as-is
+- NULL/empty results: Displayed as `N/A`
+
+**Text Contrast:**
+Tile text color automatically adjusts (black or white) based on background color luminance for optimal readability (WCAG compliant).
+
+**Responsive Layout:**
+- Desktop: Tiles display in flexible row with wrapping
+- Tablet (768px): 2-3 tiles per row
+- Mobile (480px): 1 tile per row
+
+**Visual States:**
+- Default: Card with subtle shadow
+- Hover: Lift effect with enhanced shadow
+- Active (clicked): Bold border highlight
+
+**Example Full Dashboard with Tiles:**
+```json
+{
+  "dashboard_templates": [
+    {
+      "name": "Sales Dashboard",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "Sales KPIs",
+          "config": {
+            "tiles": [
+              {
+                "name": "Today",
+                "query": "SELECT COUNT(*) FROM orders WHERE date(order_date) = date('now')",
+                "description": "Orders today",
+                "color": "#4CAF50"
+              },
+              {
+                "name": "This Week",
+                "query": "SELECT COUNT(*) FROM orders WHERE date(order_date) >= date('now', '-7 days')",
+                "description": "Last 7 days",
+                "color": "#2196F3"
+              },
+              {
+                "name": "Total Revenue",
+                "query": "SELECT ROUND(SUM(total), 2) FROM orders",
+                "description": "All-time sales",
+                "color": "#FF9800"
+              }
+            ]
+          }
+        },
+        {
+          "type": "grid",
+          "title": "Filtered Orders",
+          "parent": "Sales KPIs",
+          "query": "SELECT * FROM orders WHERE date(order_date) >= date('now', '-' || CASE '${tile_name}' WHEN 'Today' THEN 0 WHEN 'This Week' THEN 7 ELSE 365 END || ' days')"
+        },
+        {
+          "type": "grid",
+          "title": "All Products",
+          "query": "SELECT * FROM products ORDER BY category"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Validation Rules:**
+
+The system validates tile widget configurations before rendering:
+
+| Rule | Severity | Message |
+|------|----------|---------|
+| Multiple tile widgets in template | Error | "Only one tile widget allowed per dashboard template" |
+| Tile widget not first item | Error | "Tile widget must be the first dashboard item" |
+| Empty tiles array | Error | "Tile widget must contain at least one tile" |
+| Missing tile name | Error | "Tile missing required field 'name' at index {i}" |
+| Missing tile query | Error | "Tile missing required field 'query' at index {i}" |
+| Duplicate tile names | Warning | "Duplicate tile name '{name}' found" |
+| Invalid color format | Warning | "Invalid color '{color}', using default" |
+
+Errors block rendering; warnings display but allow dashboard to load.
+
+**See Example:**
+- Configuration: [docs/examples/tiles-example/index.json](docs/examples/tiles-example/index.json)
+- Sample Database: [docs/examples/tiles-example/sample.db](docs/examples/tiles-example/sample.db)
+- Validation Tests: [docs/examples/tiles-example/validation-tests/](docs/examples/tiles-example/validation-tests/)
+
 #### Grid Configuration
 - `grid_row_menus`: Array of context menu items for grid rows
   - `label`: Display text for the menu item

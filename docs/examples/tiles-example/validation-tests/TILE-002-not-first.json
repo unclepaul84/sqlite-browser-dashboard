@@ -1,0 +1,32 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Invalid - Tile Widget Not First",
+      "dashboard_items": [
+        {
+          "type": "grid",
+          "title": "First Grid",
+          "query": "SELECT * FROM orders LIMIT 5"
+        },
+        {
+          "type": "tiles",
+          "title": "Tile Widget",
+          "config": {
+            "tiles": [
+              {
+                "name": "Test",
+                "query": "SELECT 1"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "Test",
+      "path": "../sample.db"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Warning - Duplicate Tile Names",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "Tile Widget",
+          "config": {
+            "tiles": [
+              {
+                "name": "Active",
+                "query": "SELECT COUNT(*) FROM orders WHERE status = 'Active'"
+              },
+              {
+                "name": "Active",
+                "query": "SELECT COUNT(*) FROM orders WHERE status = 'Completed'",
+                "description": "This has the same name as the first tile"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "Test",
+      "path": "../sample.db"
+    }
+  ]
+}
