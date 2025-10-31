@@ -130,6 +130,20 @@ class ConfigValidator {
                 return;
             }
 
+            // TILE-001: Single tile widget per template
+            const tileWidgets = template.dashboard_items.filter(item => item.type === 'tiles');
+            if (tileWidgets.length > 1) {
+                errors.push(`Template[${idx}]: Only one tile widget allowed per template (found ${tileWidgets.length})`);
+            }
+
+            // TILE-002: Tile widget must be first item
+            if (tileWidgets.length === 1) {
+                const tileWidgetIndex = template.dashboard_items.findIndex(item => item.type === 'tiles');
+                if (tileWidgetIndex !== 0) {
+                    errors.push(`Template[${idx}]: Tile widget must be the first item in dashboard_items (currently at index ${tileWidgetIndex})`);
+                }
+            }
+
             const itemTitles = new Set();
             template.dashboard_items.forEach((item, itemIdx) => {
                 // Validate basic fields
@@ -141,13 +155,14 @@ class ConfigValidator {
                     itemTitles.add(item.title);
                 }
 
-                if (!item.query) {
+                // Query field is required for grid and chart types, but NOT for tiles
+                if (item.type !== 'tiles' && !item.query) {
                     errors.push(`Template[${idx}].items[${itemIdx}]: Missing required 'query' field`);
                 }
 
                 // Validate visualization type
-                if (item.type && !['grid', 'chart'].includes(item.type)) {
-                    errors.push(`Template[${idx}].items[${itemIdx}]: Invalid type '${item.type}'. Must be 'grid' or 'chart'`);
+                if (item.type && !['grid', 'chart', 'tiles'].includes(item.type)) {
+                    errors.push(`Template[${idx}].items[${itemIdx}]: Invalid type '${item.type}'. Must be 'grid', 'chart', or 'tiles'`);
                 }
 
                 // Validate chart configuration
@@ -170,9 +185,58 @@ class ConfigValidator {
                     }
                 }
 
-                // Validate grid menu configuration
+                // Validate tile widget configuration
+                if (item.type === 'tiles') {
+                    // Tile widgets cannot have a parent (they are always root-level)
+                    if (item.parent) {
+                        errors.push(`Template[${idx}].items[${itemIdx}]: Tile widget cannot have a parent - it must be a root-level item`);
+                    }
+                    
+                    // TILE-003: Tiles array not empty
+                    if (!item.config || !item.config.tiles || !Array.isArray(item.config.tiles)) {
+                        errors.push(`Template[${idx}].items[${itemIdx}]: Tile widget missing required config.tiles array`);
+                    } else if (item.config.tiles.length === 0) {
+                        errors.push(`Template[${idx}].items[${itemIdx}]: Tile widget must contain at least one tile`);
+                    } else {
+                        // Validate individual tiles
+                        const tileNames = new Set();
+                        item.config.tiles.forEach((tile, tileIdx) => {
+                            // TILE-004: Tile name required
+                            if (!tile.name || typeof tile.name !== 'string' || tile.name.trim() === '') {
+                                errors.push(`Template[${idx}].items[${itemIdx}].tiles[${tileIdx}]: Tile missing required field 'name' at index ${tileIdx}`);
+                            } else {
+                                // TILE-006: Duplicate tile names (warning)
+                                if (tileNames.has(tile.name)) {
+                                    // Note: This is a warning but we'll add it to errors array
+                                    // The implementation will need to distinguish warnings from errors
+                                    errors.push(`Template[${idx}].items[${itemIdx}]: WARNING: Duplicate tile name '${tile.name}' found`);
+                                }
+                                tileNames.add(tile.name);
+                            }
+                            
+                            // TILE-005: Tile query required
+                            if (!tile.query || typeof tile.query !== 'string' || tile.query.trim() === '') {
+                                errors.push(`Template[${idx}].items[${itemIdx}].tiles[${tileIdx}]: Tile missing required field 'query' at index ${tileIdx}`);
+                            }
+                            
+                            // TILE-007: Invalid color format (warning)
+                            if (tile.color) {
+                                // Simple validation - try to create a temporary element to test color
+                                // This will be validated more thoroughly in the browser
+                                if (typeof tile.color !== 'string') {
+                                    errors.push(`Template[${idx}].items[${itemIdx}].tiles[${tileIdx}]: WARNING: Invalid color type for tile '${tile.name || tileIdx}', using default`);
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Validate grid menu configuration (only for grid type)
                 if (item.grid_row_menus) {
-                    if (!Array.isArray(item.grid_row_menus)) {
+                    // Grid row menus only make sense for grid visualizations
+                    if (item.type && item.type !== 'grid') {
+                        errors.push(`Template[${idx}].items[${itemIdx}]: grid_row_menus only applicable to grid type (current type: '${item.type}')`);
+                    } else if (!Array.isArray(item.grid_row_menus)) {
                         errors.push(`Template[${idx}].items[${itemIdx}]: grid_row_menus must be an array`);
                     } else {
                         item.grid_row_menus.forEach((menu, menuIdx) => {

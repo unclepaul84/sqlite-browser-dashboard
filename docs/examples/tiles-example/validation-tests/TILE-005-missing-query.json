@@ -1,0 +1,27 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Invalid - Missing Tile Query",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "Tile Widget",
+          "config": {
+            "tiles": [
+              {
+                "name": "No Query Tile",
+                "description": "This tile is missing the query field"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "Test",
+      "path": "../sample.db"
+    }
+  ]
+}

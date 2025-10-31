@@ -1,0 +1,27 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Invalid - Missing Tile Name",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "Tile Widget",
+          "config": {
+            "tiles": [
+              {
+                "query": "SELECT COUNT(*) FROM orders",
+                "description": "This tile is missing the name field"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "Test",
+      "path": "../sample.db"
+    }
+  ]
+}

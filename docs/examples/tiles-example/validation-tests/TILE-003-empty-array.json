@@ -1,0 +1,22 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Invalid - Empty Tiles Array",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "Tile Widget",
+          "config": {
+            "tiles": []
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "Test",
+      "path": "../sample.db"
+    }
+  ]
+}

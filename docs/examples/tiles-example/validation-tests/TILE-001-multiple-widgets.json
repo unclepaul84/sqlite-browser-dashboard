@@ -1,0 +1,39 @@
+{
+  "dashboard_templates": [
+    {
+      "name": "Invalid - Multiple Tile Widgets",
+      "dashboard_items": [
+        {
+          "type": "tiles",
+          "title": "First Tile Widget",
+          "config": {
+            "tiles": [
+              {
+                "name": "Test",
+                "query": "SELECT 1"
+              }
+            ]
+          }
+        },
+        {
+          "type": "tiles",
+          "title": "Second Tile Widget",
+          "config": {
+            "tiles": [
+              {
+                "name": "Another",
+                "query": "SELECT 2"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "name": "Test",
+      "path": "../sample.db"
+    }
+  ]
+}

@@ -44,6 +44,75 @@
                 transform: rotate(0deg);
             }
         }
+
+        /* ==================== TILE WIDGET STYLES ==================== */
+        
+        .tile-widget-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem 0;
+        }
+
+        .tile {
+            flex: 1 1 200px;
+            min-width: 200px;
+            max-width: 300px;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .tile:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .tile-active {
+            border: 3px solid #333;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .tile-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tile-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+            line-height: 1.2;
+        }
+
+        .tile-description {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            opacity: 0.9;
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .tile {
+                flex: 1 1 calc(50% - 0.5rem);
+                min-width: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tile {
+                flex: 1 1 100%;
+            }
+        }
+
+        /* ==================== END TILE WIDGET STYLES ==================== */
     </style>
     <link rel="stylesheet" href="js/ws.css">
     <link rel="stylesheet" href="js/tabulator.min.css" />
@@ -217,6 +286,9 @@
                         showErrorToast(`Could not find dashboard template named [${dataset.dashboard_items_tempate}]`);
                     }
 
+                    // Store template globally for tile widget click handling
+                    window.current_template = template;
+
                     loadDocumentation(template);
 
                     template.dashboard_items.forEach(di => {
@@ -343,10 +415,294 @@
             });
         }
 
+        // ==================== TILE WIDGET FUNCTIONS ====================
+
+        /**
+         * Extract numeric value from SQL query results
+         * Takes first column of first row, handles NULL/empty results
+         */
+        function extractTileValue(rows) {
+            if (!rows || rows.length === 0) {
+                return "N/A";
+            }
+            
+            const firstRow = rows[0];
+            const firstColumn = Object.keys(firstRow)[0];
+            const value = firstRow[firstColumn];
+            
+            if (value === null || value === undefined) {
+                return "N/A";
+            }
+            
+            // Try to parse as number
+            const numValue = Number(value);
+            if (!isNaN(numValue)) {
+                return numValue;
+            }
+            
+            // Fall back to string representation
+            return String(value);
+        }
+
+        /**
+         * Format tile numeric values with thousands separators
+         * Optionally abbreviate very large numbers (1.2M, 3.4B)
+         */
+        function formatTileValue(value) {
+            if (value === "N/A" || isNaN(value)) {
+                return value;
+            }
+            
+            const num = Number(value);
+            
+            // Abbreviate millions and billions
+            if (num >= 1000000000) {
+                return (num / 1000000000).toFixed(1) + 'B';
+            } else if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            }
+            
+            // Use locale formatting for smaller numbers
+            return num.toLocaleString('en-US');
+        }
+
+        /**
+         * Calculate contrast text color based on background luminance
+         * Returns black or white for optimal readability (WCAG compliant)
+         */
+        function getContrastTextColor(bgColor) {
+            // Default to white text for dark backgrounds
+            if (!bgColor) return '#FFFFFF';
+            
+            // Convert hex to RGB
+            let r, g, b;
+            
+            // Handle hex colors
+            if (bgColor.startsWith('#')) {
+                const hex = bgColor.replace('#', '');
+                if (hex.length === 3) {
+                    r = parseInt(hex[0] + hex[0], 16);
+                    g = parseInt(hex[1] + hex[1], 16);
+                    b = parseInt(hex[2] + hex[2], 16);
+                } else {
+                    r = parseInt(hex.substring(0, 2), 16);
+                    g = parseInt(hex.substring(2, 4), 16);
+                    b = parseInt(hex.substring(4, 6), 16);
+                }
+            } else if (bgColor.startsWith('rgb')) {
+                // Handle rgb/rgba
+                const matches = bgColor.match(/\d+/g);
+                if (matches && matches.length >= 3) {
+                    r = parseInt(matches[0]);
+                    g = parseInt(matches[1]);
+                    b = parseInt(matches[2]);
+                }
+            } else {
+                // For named colors or other formats, default to white
+                return '#FFFFFF';
+            }
+            
+            // Calculate relative luminance (WCAG formula)
+            const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+            
+            // Return black for light backgrounds, white for dark
+            return luminance > 0.5 ? '#000000' : '#FFFFFF';
+        }
+
+        /**
+         * Render the tile container
+         */
+        function renderTileContainer(containerId, tileWidgetTitle) {
+            const container = $(`<div class="tile-widget-container" id="${containerId}-tiles" data-tile-widget-title="${tileWidgetTitle}"></div>`);
+            $(`#${containerId}`).append(container);
+            return container;
+        }
+
+        /**
+         * Render a single tile with name, value, description, and color
+         */
+        function renderSingleTile(tile, value, tileWidgetTitle) {
+            const formattedValue = formatTileValue(value);
+            const color = tile.color || '#4A90E2';
+            const textColor = getContrastTextColor(color);
+            const description = tile.description || '';
+            
+            const tileHtml = `
+                <div class="tile" 
+                     data-tile-name="${tile.name}" 
+                     data-tile-widget="${tileWidgetTitle}"
+                     data-query="${tile.query}"
+                     style="background-color: ${color}; color: ${textColor};">
+                    <div class="tile-name">${tile.name}</div>
+                    <div class="tile-value">${formattedValue}</div>
+                    ${description ? `<div class="tile-description">${description}</div>` : ''}
+                </div>
+            `;
+            
+            return $(tileHtml);
+        }
+
+        /**
+         * Main tile widget rendering function
+         * Executes all tile queries in parallel and renders the tile widget
+         */
+        function queryAndBuildTileWidget(db, di, containerId) {
+            const tileConfig = di.config;
+            const tileWidgetTitle = di.title;
+            
+            if (!tileConfig || !tileConfig.tiles || !Array.isArray(tileConfig.tiles)) {
+                showErrorToast('Tile widget configuration error: missing tiles array');
+                return null;
+            }
+            
+            // Initialize global tile state
+            if (!window.tile_widget_state) {
+                window.tile_widget_state = {
+                    current_tile_name: null,
+                    tile_widget_title: null,
+                    db: null,
+                    template: null
+                };
+            }
+            
+            // Store db reference for tile click handling
+            window.tile_widget_state.db = db;
+            window.tile_widget_state.tile_widget_title = tileWidgetTitle;
+            
+            // Create tile container
+            const container = renderTileContainer(containerId, tileWidgetTitle);
+            
+            // Execute all tile queries in parallel
+            const tilePromises = tileConfig.tiles.map(tile => {
+                return new Promise((resolve) => {
+                    try {
+                        const rows = [];
+                        db.exec({
+                            sql: tile.query,
+                            rowMode: "object",
+                            resultRows: rows
+                        });
+                        const value = extractTileValue(rows);
+                        resolve({ tile, value, error: null });
+                    } catch (error) {
+                        console.error(`Tile query error for '${tile.name}':`, error);
+                        resolve({ tile, value: "Error", error: error.message });
+                    }
+                });
+            });
+            
+            // Wait for all queries to complete
+            Promise.all(tilePromises).then(results => {
+                results.forEach(result => {
+                    const tileElement = renderSingleTile(result.tile, result.value, tileWidgetTitle);
+                    container.append(tileElement);
+                    
+                    if (result.error) {
+                        showErrorToast(`Tile '${result.tile.name}' query failed: ${result.error}`);
+                    }
+                });
+                
+                // Add click event handlers using event delegation
+                container.on('click', '.tile', function() {
+                    const tileName = $(this).data('tile-name');
+                    const tileWidget = $(this).data('tile-widget');
+                    onTileClick(tileName, tileWidget);
+                });
+                
+                // Add double-click event handler to show custom query modal with tile query
+                container.on('dblclick', '.tile', function() {
+                    const query = $(this).data('query');
+                    $('#customQueryText').val(query);
+                    showCustomQueryModal();
+                    runCustomQuery();
+                });
+            }).catch(error => {
+                showErrorToast(`Tile widget error: ${error.message}`);
+            });
+            
+            return container;
+        }
+
+        /**
+         * Handle tile click - set global state and trigger child grid updates
+         */
+        function onTileClick(tileName, tileWidgetTitle) {
+            // Update global state
+            window.tile_widget_state.current_tile_name = tileName;
+            window.tile_widget_state.tile_widget_title = tileWidgetTitle;
+            
+            // Update visual state - remove active class from all tiles, add to clicked
+            $('.tile').removeClass('tile-active');
+            $(`.tile[data-tile-name="${tileName}"]`).addClass('tile-active');
+            
+            // Find and re-render child grids
+            const db = window.current_db;
+            const template = window.current_template;
+            
+            if (!db || !template) {
+                console.warn('Tile clicked but database or template not available');
+                return;
+            }
+            
+            // Find all dashboard items that have this tile widget as parent
+            const childItems = template.dashboard_items.filter(item => item.parent === tileWidgetTitle);
+            
+            if (childItems.length === 0) {
+                console.log(`Tile '${tileName}' clicked - no child grids configured`);
+                return;
+            }
+            
+            // Re-render each child grid with tile_name substitution
+            childItems.forEach(childItem => {
+                const gridId = `grid_${childItem.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                // Create container if it doesn't exist (for child grids that weren't initially rendered)
+                if ($(`#${gridId}_visualization_container`).length === 0) {
+                    $('#grids').append(`<div id="${gridId}_visualization_container" class="w3-container" style="margin-top:5px"><span class="w3-tag w3-blue" id="${gridId}_title"></span><span id="${gridId}_rowcount" class="w3-tag"></span><a id="${gridId}_export" style="display:none" href="javascript:void(0);">Export</a><div id="${gridId}"></div><div id="${gridId}_visualization_container_children"></div></div>`);
+                    
+                    $(`#${gridId}_title`).on("dblclick", function (el) {
+                        showCustomQueryModal();
+                        $('#customQueryText').val(this.title);
+                        runCustomQuery();
+                    });
+                    
+                    $(`#${gridId}_title`).text(childItem.title);
+                }
+                
+                // Clear existing child grid
+                $(`#${gridId}`).empty();
+                $(`#${gridId}_visualization_container_children`).empty();
+                
+                // Substitute ${tile_name} in the query
+                const substitutedQuery = replaceStringTemplateValues(childItem.query, { tile_name: tileName });
+                
+                // Re-render the grid
+                try {
+                    const vis_result = queryAndBuildVisualization(db, childItem, substitutedQuery, gridId, childItem.title);
+                    
+                    // Re-attach row click handler for nested grids
+                    if (vis_result[0] === "grid") {
+                        vis_result[1].on("rowClick", function (e, row) {
+                            const data = row.getData();
+                            const clickedRowIndex = row.getPosition();
+                            renderNestedGrids(db, template, childItem.title, data, gridId, clickedRowIndex, 1);
+                        });
+                    }
+                } catch (error) {
+                    showErrorToast(`Error rendering child grid '${childItem.title}': ${error.message}`);
+                }
+            });
+            
+            console.log(`Tile '${tileName}' clicked - ${childItems.length} child grid(s) updated`);
+        }
+
+        // ==================== END TILE WIDGET FUNCTIONS ====================
+
         function queryAndBuildVisualization(db, di, query, containerId, title) {
 
-
-            if (di.type === 'chart') {
+            if (di.type === 'tiles') {
+                return ['tiles', queryAndBuildTileWidget(db, di, containerId)];
+            } else if (di.type === 'chart') {
                 return ['chart', createChart(db, query, containerId, di, title)];
             } else {
                 return ['grid', queryAndBuildGrid(db, query, containerId, title, di)];
